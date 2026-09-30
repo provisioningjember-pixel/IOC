@@ -92,6 +92,15 @@ export default async function handler(req, res) {
     return res.status(405).json({ success: false, message: "Method Not Allowed" });
   } catch (error) {
     console.error("API Error:", error);
+    
+    // Tangkap error jika NIK sudah terpakai
+    if (error.message && error.message.includes("UNIQUE constraint failed: users_hd.nik")) {
+      return res.status(400).json({
+        success: false,
+        message: "NIK sudah terdaftar! Silakan gunakan NIK yang lain.",
+      });
+    }
+
     return res.status(500).json({
       success: false,
       message: error.message || "Terjadi kesalahan server",

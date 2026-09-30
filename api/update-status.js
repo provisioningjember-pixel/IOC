@@ -7,49 +7,44 @@ const db = createClient({
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
   try {
-    const { tiket_id, status, kategori_pekerjaan, nama_hd, nik_hd } = req.body;
+    const { id_permintaan, status_baru, id_telegram_hd, keterangan } = req.body;
 
-    if (!tiket_id) {
-      return res.status(400).json({ error: 'tiket_id wajib diisi' });
+    if (!id_permintaan || !status_baru) {
+      return res.status(400).json({ success: false, error: 'id_permintaan dan status_baru wajib diisi' });
     }
 
-    const currentTimestamp = new Date().toISOString();
+    let query = '';
+    let args = [];
 
-    if (status === 'PROGRESS') {
-      await db.execute({
-        sql: `UPDATE permintaan 
-              SET status = ?, 
-                  timestamp_taken = COALESCE(timestamp_taken, ?), 
-                  kategori_pekerjaan = COALESCE(NULLIF(?, ''), kategori_pekerjaan),
-                  nama_hd = ?
-              WHERE tiket_id = ? AND msg_type = 'UTAMA'`,
-        args: [status, currentTimestamp, kategori_pekerjaan || '', nama_hd || null, tiket_id]
-      });
-    } else if (status === 'CLOSED') {
-      await db.execute({
-        sql: `UPDATE permintaan 
-              SET status = 'CLOSED', 
-                  timestamp_close = ?, 
-                  kategori_pekerjaan = ? 
-              WHERE tiket_id = ? AND msg_type = 'UTAMA'`,
-        args: [currentTimestamp, kategori_pekerjaan, tiket_id]
-      });
+    if (status_baru === 'taken' || status_baru === 'dikerjakan') {
+      query = `UPDATE permintaan 
+               SET status = ?, id_telegram_hd = ?, keterangan = ?, timestamp_taken = CURRENT_TIMESTAMP 
+               WHERE id_permintaan = ?`;
+      args = [status_baru, id_telegram_hd || null, keterangan || null, id_permintaan];
+    } else if (status_baru === 'close' || status_baru === 'closed') {
+      query = `UPDATE permintaan 
+               SET status = ?, id_telegram_hd = ?, keterangan = ?, timestamp_close = CURRENT_TIMESTAMP 
+               WHERE id_permintaan = ?`;
+      args = [status_baru, id_telegram_hd || null, keterangan || null, id_permintaan];
     } else {
-      await db.execute({
-        sql: `UPDATE permintaan 
-              SET kategori_pekerjaan = ? 
-              WHERE tiket_id = ? AND msg_type = 'UTAMA'`,
-        args: [kategori_pekerjaan, tiket_id]
-      });
+      query = `UPDATE permintaan 
+               SET status = ?, id_telegram_hd = ?, keterangan = ? 
+               WHERE id_permintaan = ?`;
+      args = [status_baru, id_telegram_hd || null, keterangan || null, id_permintaan];
     }
 
-    return res.status(200).json({ success: true, message: 'Status berhasil diperbarui' });
-  } catch (err) {
-    console.error('Error update-status:', err);
-    return res.status(500).json({ error: err.message });
+    await db.execute({ sql: query, args });
+
+    return res.status(200).json({
+      success: true,
+      message: `Status tiket berhasil diubah ke ${status_baru}`
+    });
+  } catch (error) {
+    console.error('Update status error:', error);
+    return res.status(500).json({ success: false, error: error.message });
   }
 }

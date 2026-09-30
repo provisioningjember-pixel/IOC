@@ -145,23 +145,26 @@
 
     // Fetch Tiket dari Backend API
     async function loadTickets() {
-      const container = document.getElementById('ticketContainer');
-      container.innerHTML = `<div class="text-center p-5 text-muted">Memuat data tiket...</div>`;
+  const container = document.getElementById('ticketContainer');
+  container.innerHTML = `<div class="text-center p-5 text-muted">Memuat data tiket...</div>`;
 
-      try {
-        const segmen = currentUser.segmen || 'B2C';
-        const res = await fetch(`/api/tickets?segmen=${segmen}&status=${currentStatus}`);
-        const result = await res.json();
+  try {
+    const segmen = currentUser.segmen || 'B2C';
+    const idTelegram = currentUser.id_telegram || '';
 
-        if (result.success) {
-          renderTickets(result.data);
-        } else {
-          container.innerHTML = `<div class="alert alert-danger">${result.error}</div>`;
-        }
-      } catch (err) {
-        container.innerHTML = `<div class="alert alert-warning text-center">Koneksi bermasalah</div>`;
-      }
+    // Mengirim segmen, status, DAN id_telegram_hd milik user yang login ke API
+    const res = await fetch(`/api/tickets?segmen=${segmen}&status=${currentStatus}&id_telegram_hd=${idTelegram}`);
+    const result = await res.json();
+
+    if (result.success) {
+      renderTickets(result.data);
+    } else {
+      container.innerHTML = `<div class="alert alert-danger">${result.error}</div>`;
     }
+  } catch (err) {
+    container.innerHTML = `<div class="alert alert-warning text-center">Koneksi bermasalah</div>`;
+  }
+}
 
     // Render Data Tiket ke UI
     function renderTickets(tickets) {

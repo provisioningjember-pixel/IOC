@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRUD Users HD - ProduktivitasHD</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-4 md:p-8 font-sans">
+  <div class="max-w-6xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold text-gray-800">Manajemen User HD (`users_hd`)</h1>
+      <button onclick="openModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow font-medium">
+        + Tambah User
+      </button>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white rounded-lg shadow overflow-x-auto">
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="bg-gray-200 text-gray-700 uppercase text-xs">
+            <th class="py-3 px-4">NIK</th>
+            <th class="py-3 px-4">Nama</th>
+            <th class="py-3 px-4">Username</th>
+            <th class="py-3 px-4">Segmen</th>
+            <th class="py-3 px-4">ID Telegram</th>
+            <th class="py-3 px-4">Status</th>
+            <th class="py-3 px-4 text-center">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="userTableBody" class="divide-y divide-gray-200 text-sm">
+          <tr><td colspan="7" class="text-center py-4 text-gray-500">Memuat data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal Form -->
+  <div id="userModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
+      <h2 id="modalTitle" class="text-xl font-bold mb-4 text-gray-800">Tambah User</h2>
+      <form id="userForm" onsubmit="saveUser(event)">
+        <input type="hidden" id="userId" />
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="block text-xs font-semibold mb-1">NIK</label>
+            <input type="text" id="nik" required class="w-full border rounded p-2 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Segmen</label>
+            <select id="segmen" required class="w-full border rounded p-2 text-sm">
+              <option value="B2C">B2C</option>
+              <option value="B2B">B2B</option>
+              <option value="PROVI">PROVI</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="block text-xs font-semibold mb-1">Nama Lengkap</label>
+          <input type="text" id="nama" required class="w-full border rounded p-2 text-sm" />
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="block text-xs font-semibold mb-1">Username</label>
+            <input type="text" id="username" required class="w-full border rounded p-2 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Password</label>
+            <input type="password" id="password" placeholder="Isi untuk ubah" class="w-full border rounded p-2 text-sm" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div>
+            <label class="block text-xs font-semibold mb-1">Status</label>
+            <select id="status" class="w-full border rounded p-2 text-sm">
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="INACTIVE">INACTIVE</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">ID Telegram</label>
+            <input type="text" id="id_telegram" class="w-full border rounded p-2 text-sm" placeholder="Opsional" />
+          </div>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button type="button" onclick="closeModal()" class="px-4 py-2 border rounded text-gray-600 text-sm">Batal</button>
+          <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = '/api/users';
+
+    async function loadUsers() {
+      try {
+        const res = await fetch(API_URL);
+        const json = await res.json();
+        const tbody = document.getElementById('userTableBody');
+        tbody.innerHTML = '';
+
+        if (json.data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-500">Tidak ada data.</td></tr>';
+          return;
+        }
+
+        json.data.forEach(u => {
+          tbody.innerHTML += `
+            <tr class="hover:bg-gray-50">
+              <td class="py-3 px-4 font-mono text-xs">${u.nik}</td>
+              <td class="py-3 px-4 font-semibold">${u.nama}</td>
+              <td class="py-3 px-4">${u.username}</td>
+              <td class="py-3 px-4"><span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">${u.segmen}</span></td>
+              <td class="py-3 px-4 text-gray-600">${u.id_telegram || '-'}</td>
+              <td class="py-3 px-4">
+                <span class="px-2 py-0.5 text-xs rounded ${u.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${u.status}</span>
+              </td>
+              <td class="py-3 px-4 text-center">
+                <button onclick='editUser(${JSON.stringify(u)})' class="text-yellow-600 hover:underline mr-2 text-xs">Edit</button>
+                <button onclick="deleteUser('${u.id}')" class="text-red-600 hover:underline text-xs">Hapus</button>
+              </td>
+            </tr>`;
+        });
+      } catch (err) {
+        alert('Gagal memuat data!');
+      }
+    }
+
+    function openModal() {
+      document.getElementById('userForm').reset();
+      document.getElementById('userId').value = '';
+      document.getElementById('password').required = true;
+      document.getElementById('modalTitle').innerText = 'Tambah User';
+      document.getElementById('userModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('userModal').classList.add('hidden');
+    }
+
+    function editUser(u) {
+      document.getElementById('userId').value = u.id;
+      document.getElementById('nik').value = u.nik;
+      document.getElementById('nama').value = u.nama;
+      document.getElementById('username').value = u.username;
+      document.getElementById('password').required = false; // tidak wajib saat edit
+      document.getElementById('segmen').value = u.segmen;
+      document.getElementById('status').value = u.status;
+      document.getElementById('id_telegram').value = u.id_telegram || '';
+      document.getElementById('modalTitle').innerText = 'Edit User';
+      document.getElementById('userModal').classList.remove('hidden');
+    }
+
+    async function saveUser(e) {
+      e.preventDefault();
+      const id = document.getElementById('userId').value;
+      const method = id ? 'PUT' : 'POST';
+
+      const payload = {
+        id,
+        nik: document.getElementById('nik').value,
+        nama: document.getElementById('nama').value,
+        username: document.getElementById('username').value,
+        password: document.getElementById('password').value,
+        segmen: document.getElementById('segmen').value,
+        status: document.getElementById('status').value,
+        id_telegram: document.getElementById('id_telegram').value,
+      };
+
+      const res = await fetch(API_URL, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        closeModal();
+        loadUsers();
+      } else {
+        alert(json.message);
+      }
+    }
+
+    async function deleteUser(id) {
+      if (!confirm('Yakin ingin menghapus user ini?')) return;
+      const res = await fetch(`${API_URL}?id=${id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) loadUsers();
+      else alert(json.message);
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>

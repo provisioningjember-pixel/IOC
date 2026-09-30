@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HD Monitoring Desk</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 font-sans min-h-screen text-gray-800">
+
+  <!-- LOGIN SECTION -->
+  <div id="login-section" class="flex items-center justify-center min-h-screen">
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+      <div class="text-center mb-6">
+        <h1 class="text-2xl font-bold text-blue-600">Helpdesk Portal</h1>
+        <p class="text-gray-500 text-sm">Masukan NIK & Password Anda</p>
+      </div>
+      <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">NIK</label>
+          <input type="text" id="login-nik" required class="w-full mt-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Password</label>
+          <input type="password" id="login-password" required class="w-full mt-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+        <button type="submit" id="login-btn" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition">
+          Login
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- DASHBOARD SECTION -->
+  <div id="dashboard-section" class="hidden">
+    <nav class="bg-white border-b sticky top-0 z-10 px-6 py-3 flex justify-between items-center shadow-sm">
+      <div class="flex items-center space-x-4">
+        <span class="text-xl font-bold text-blue-600">HD Portal</span>
+        <span id="badge-segmen" class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-1 rounded-full">SEGMEN</span>
+        <a href="/manage_hd.html" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg border font-medium">⚙️ Kelola User HD</a>
+      </div>
+      <div class="flex items-center space-x-4">
+        <span id="user-display" class="text-sm font-medium text-gray-700"></span>
+        <button onclick="handleLogout()" class="text-sm bg-red-50 text-red-600 px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-100">Logout</button>
+      </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto p-6">
+      <!-- Tabs -->
+      <div class="flex space-x-2 border-b mb-6">
+        <button onclick="switchTab('open')" id="tab-open" class="tab-btn px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600">📥 Pesan Open <span id="count-open" class="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full ml-1">0</span></button>
+        <button onclick="switchTab('progress')" id="tab-progress" class="tab-btn px-4 py-2 font-medium text-gray-500 border-b-2 border-transparent">⚙️ Dikerjakan <span id="count-progress" class="bg-yellow-500 text-white text-xs px-2 py-0.5 rounded-full ml-1">0</span></button>
+        <button onclick="switchTab('closed')" id="tab-closed" class="tab-btn px-4 py-2 font-medium text-gray-500 border-b-2 border-transparent">✅ Closed</button>
+        <button onclick="switchTab('analytics')" id="tab-analytics" class="tab-btn px-4 py-2 font-medium text-gray-500 border-b-2 border-transparent">📊 Dashboard Analisa</button>
+      </div>
+
+      <!-- ANALYTICS CONTENT -->
+      <div id="content-analytics" class="tab-content hidden">
+        <div class="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-wrap gap-4 items-center justify-between">
+          <h2 class="font-semibold text-lg text-gray-700">Performa & Keaktifan Respons HD</h2>
+          <div class="flex items-center space-x-2">
+            <label class="text-sm text-gray-600">Filter Tanggal:</label>
+            <input type="date" id="filter-start" class="border rounded px-2 py-1 text-sm">
+            <span>s/d</span>
+            <input type="date" id="filter-end" class="border rounded px-2 py-1 text-sm">
+            <button onclick="loadAnalytics()" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">Apply</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-blue-500">
+            <p class="text-xs text-gray-500 uppercase font-bold">Total Tiket Masuk</p>
+            <p id="stat-total" class="text-2xl font-bold mt-1">0</p>
+          </div>
+          <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-yellow-500">
+            <p class="text-xs text-gray-500 uppercase font-bold">Rata-Rata Response Time</p>
+            <p id="stat-avg-response" class="text-2xl font-bold mt-1">0 mnt</p>
+          </div>
+          <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-green-500">
+            <p class="text-xs text-gray-500 uppercase font-bold">Tiket Closed</p>
+            <p id="stat-closed" class="text-2xl font-bold mt-1">0</p>
+          </div>
+          <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-purple-500">
+            <p class="text-xs text-gray-500 uppercase font-bold">HD Paling Aktif</p>
+            <p id="stat-top-hd" class="text-lg font-bold mt-1 text-purple-700">-</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-white p-5 rounded-xl shadow-sm">
+            <h3 class="font-semibold text-gray-700 mb-4">Jumlah Balasan per Personel HD</h3>
+            <canvas id="chart-hd-activity"></canvas>
+          </div>
+          <div class="bg-white p-5 rounded-xl shadow-sm">
+            <h3 class="font-semibold text-gray-700 mb-4">Status Tiket</h3>
+            <canvas id="chart-status"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- TICKET LIST -->
+      <div id="content-tickets" class="tab-content">
+        <div id="ticket-list" class="space-y-4"></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- MODAL LIGHTBOX / ZOOM GAMBAR -->
+  <div id="image-modal" class="fixed inset-0 bg-black/80 hidden flex items-center justify-center p-4 z-[60]" onclick="closeImageModal()">
+    <div class="relative max-w-4xl max-h-[90vh] flex flex-col items-center justify-center">
+      <button onclick="closeImageModal()" class="absolute -top-10 right-0 text-white text-2xl font-bold hover:text-gray-300">&times; Tutup</button>
+      <img id="modal-zoom-img" src="" class="max-w-full max-h-[85vh] rounded-lg object-contain shadow-2xl" onclick="event.stopPropagation()">
+    </div>
+  </div>
+
+  <!-- CHAT MODAL -->
+  <div id="chat-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl flex flex-col h-[85vh]">
+      <div class="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
+        <div>
+          <h3 id="modal-title" class="font-bold text-gray-800">Ruang Chat Tiket</h3>
+          <p id="modal-subtitle" class="text-xs text-gray-500"></p>
+        </div>
+        <button onclick="closeChatModal()" class="text-gray-400 hover:text-gray-600 font-bold text-xl">&times;</button>
+      </div>
+
+      <div id="chat-history" class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50"></div>
+
+      <div id="image-preview-container" class="hidden p-2 border-t bg-gray-100 flex items-center space-x-2">
+        <img id="image-preview" class="h-16 w-16 object-cover rounded border">
+        <span class="text-xs text-gray-600">Gambar dipaste/dilampirkan</span>
+        <button onclick="clearImagePreview()" class="text-xs text-red-500 underline ml-auto">Hapus</button>
+      </div>
+
+      <div class="p-3 border-t bg-white rounded-b-xl relative">
+        <div id="chat-loading" class="hidden absolute inset-0 bg-white/90 flex items-center justify-center z-10 rounded-b-xl">
+          <div class="flex items-center space-x-3">
+            <svg class="animate-spin h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="text-sm font-semibold text-blue-600">Mengirim Balasan...</span>
+          </div>
+        </div>
+
+        <form id="chat-form" onsubmit="submitReply(event)" class="flex flex-col space-y-2">
+          <textarea id="chat-input" rows="2" placeholder="Tulis balasan... (Bisa langsung Paste Gambar / Ctrl+V)" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"></textarea>
+          <div class="flex justify-between items-center">
+            <label class="cursor-pointer text-xs text-gray-500 hover:text-blue-600 flex items-center space-x-1">
+              <span>📎 Lampirkan Gambar</span>
+              <input type="file" id="chat-file" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+            </label>
+            <button type="submit" class="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-semibold hover:bg-blue-700">Kirim</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentUser = null;
+    let activeTab = 'open';
+    let rawTicketsData = [];
+    let currentActiveTiket = null;
+    let selectedImageFile = null;
+    let chartHDInstance = null;
+    let chartStatusInstance = null;
+    let fetchInterval = null;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const saved = localStorage.getItem('hd_user');
+      if (saved) {
+        currentUser = JSON.parse(saved);
+        showDashboard();
+      }
+    });
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const nik = document.getElementById('login-nik').value;
+      const password = document.getElementById('login-password').value;
+      const btn = document.getElementById('login-btn');
+
+      btn.disabled = true;
+      btn.innerText = 'Memproses...';
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nik, password })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          currentUser = data.user;
+          localStorage.setItem('hd_user', JSON.stringify(currentUser));
+          showDashboard();
+        } else {
+          alert(data.error || 'Login gagal');
+        }
+      } catch (err) {
+        alert('Koneksi bermasalah');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Login';
+      }
+    }
+
+    function handleLogout() {
+      localStorage.removeItem('hd_user');
+      location.reload();
+    }
+
+    function showDashboard() {
+      document.getElementById('login-section').classList.add('hidden');
+      document.getElementById('dashboard-section').classList.remove('hidden');
+      document.getElementById('user-display').innerText = `${currentUser.nama} (${currentUser.nik})`;
+      document.getElementById('badge-segmen').innerText = currentUser.segmen;
+
+      setupPasteListener();
+      switchTab('open');
+      loadTickets();
+
+      if (fetchInterval) clearInterval(fetchInterval);
+      fetchInterval = setInterval(loadTickets, 5000);
+    }
+
+    function switchTab(tab) {
+      activeTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('border-blue-600', 'text-blue-600');
+        btn.classList.add('border-transparent', 'text-gray-500');
+      });
+      document.getElementById(`tab-${tab}`).classList.add('border-blue-600', 'text-blue-600');
+
+      if (tab === 'analytics') {
+        document.getElementById('content-analytics').classList.remove('hidden');
+        document.getElementById('content-tickets').classList.add('hidden');
+        loadAnalytics();
+      } else {
+        document.getElementById('content-analytics').classList.add('hidden');
+        document.getElementById('content-tickets').classList.remove('hidden');
+        renderTicketList();
+      }
+    }
+
+    async function loadTickets() {
+      if (!currentUser) return;
+      try {
+        const res = await fetch(`/api/tickets?action=get_tickets&segmen=${encodeURIComponent(currentUser.segmen)}`);
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          rawTicketsData = data.tickets || [];
+          let openCount = 0;
+          let progressCount = 0;
+
+          rawTicketsData.forEach(t => {
+            const st = (t.status || '').toUpperCase();
+            if (st === 'OPEN') openCount++;
+            if (st === 'PROGRESS' || st === 'INPROGRESS') progressCount++;
+          });
+
+          document.getElementById('count-open').innerText = openCount;
+          document.getElementById('count-progress').innerText = progressCount;
+
+          if (activeTab !== 'analytics') {
+            renderTicketList();
+          }
+        }
+      } catch (err) {
+        console.error("Error loading tickets:", err);
+      }
+    }
+
+    function renderTicketList() {
+      const container = document.getElementById('ticket-list');
+      container.innerHTML = '';
+
+      const filtered = rawTicketsData.filter(t => {
+        const st = (t.status || '').toUpperCase();
+        if (activeTab === 'open') return st === 'OPEN';
+        if (activeTab === 'progress') return st === 'PROGRESS' || st === 'INPROGRESS';
+        if (activeTab === 'closed') return st === 'CLOSED';
+        return false;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="bg-white p-8 text-center text-gray-500 rounded-xl border border-dashed">Tidak ada tiket di kategori ini untuk segmen <b>${currentUser.segmen}</b>.</div>`;
+        return;
+      }
+
+      filtered.forEach(t => {
+        const div = document.createElement('div');
+        div.className = "bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4";
+        const dateStr = t.timestamp_created ? new Date(t.timestamp_created).toLocaleString('id-ID') : '-';
+        const katSaatIni = t.kategori_pekerjaan || '';
+
+        div.innerHTML = `
+          <div class="space-y-1">
+            <div class="flex items-center space-x-2">
+              <span class="font-bold text-blue-600">#${t.tiket_id}</span>
+              ${katSaatIni ? `<span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded font-mono">${katSaatIni}</span>` : ''}
+              ${t.nama_hd ? `<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">HD: ${t.nama_hd}</span>` : ''}
+            </div>
+            <p class="text-gray-800 font-medium">${escapeHtml(t.pesan)}</p>
+            <p class="text-xs text-gray-400">Teknisi: <span class="font-semibold text-gray-600">${t.nama_teknisi}</span> | Waktu: ${dateStr}</p>
+          </div>
+
+          <!-- HTML Card Tiket & Action Buttons -->
+          <div class="flex flex-wrap items-center gap-2">
+            <!-- Dropdown Kategori Pekerjaan -->
+            <select id="select-kategori-${t.tiket_id}" 
+                    onchange="updateKategoriPekerjaan('${t.tiket_id}', this.value)"
+                    class="text-xs border border-gray-300 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">-- Pilih Kategori Pekerjaan --</option>
+              <option value="/MO" ${katSaatIni === '/MO' ? 'selected' : ''}>/MO</option>
+              <option value="/DO" ${katSaatIni === '/DO' ? 'selected' : ''}>/DO</option>
+              <option value="/AO" ${katSaatIni === '/AO' ? 'selected' : ''}>/AO</option>
+              <option value="/PDA" ${katSaatIni === '/PDA' ? 'selected' : ''}>/PDA</option>
+              <option value="/Config" ${katSaatIni === '/Config' ? 'selected' : ''}>/Config</option>
+              <option value="/Reboot" ${katSaatIni === '/Reboot' ? 'selected' : ''}>/Reboot</option>
+              <option value="/SSID/Pass" ${katSaatIni === '/SSID/Pass' ? 'selected' : ''}>/SSID/Pass</option>
+              <option value="/Embassy" ${katSaatIni === '/Embassy' ? 'selected' : ''}>/Embassy</option>
+              <option value="/CekPort" ${katSaatIni === '/CekPort' ? 'selected' : ''}>/CekPort</option>
+              <option value="/Downtime" ${katSaatIni === '/Downtime' ? 'selected' : ''}>/Downtime</option>
+              <option value="/Share" ${katSaatIni === '/Share' ? 'selected' : ''}>/Share</option>
+              <option value="/CekInet" ${katSaatIni === '/CekInet' ? 'selected' : ''}>/CekInet</option>
+              <option value="/Client" ${katSaatIni === '/Client' ? 'selected' : ''}>/Client</option>
+              <option value="/OpenLAN" ${katSaatIni === '/OpenLAN' ? 'selected' : ''}>/OpenLAN</option>
+              <option value="/DetekONT" ${katSaatIni === '/DetekONT' ? 'selected' : ''}>/DetekONT</option>
+              <option value="/Close" ${katSaatIni === '/Close' ? 'selected' : ''}>/Close</option>
+              <option value="/FUP" ${katSaatIni === '/FUP' ? 'selected' : ''}>/FUP</option>
+              <option value="/CekPaket" ${katSaatIni === '/CekPaket' ? 'selected' : ''}>/CekPaket</option>
+              <option value="/Bukis" ${katSaatIni === '/Bukis' ? 'selected' : ''}>/Bukis</option>
+              <option value="/Unbindusee" ${katSaatIni === '/Unbindusee' ? 'selected' : ''}>/Unbindusee</option>
+              <option value="/Cekpayment" ${katSaatIni === '/Cekpayment' ? 'selected' : ''}>/Cekpayment</option>
+              <option value="/Dispatch" ${katSaatIni === '/Dispatch' ? 'selected' : ''}>/Dispatch</option>
+              <option value="/Shutdown" ${katSaatIni === '/Shutdown' ? 'selected' : ''}>/Shutdown</option>
+              <option value="/Assign" ${katSaatIni === '/Assign' ? 'selected' : ''}>/Assign</option>
+              <option value="/Noshutdown" ${katSaatIni === '/Noshutdown' ? 'selected' : ''}>/Noshutdown</option>
+              <option value="/Openportlan" ${katSaatIni === '/Openportlan' ? 'selected' : ''}>/Openportlan</option>
+              <option value="/PelurusanBW" ${katSaatIni === '/PelurusanBW' ? 'selected' : ''}>/PelurusanBW</option>
+              <option value="/Redaman" ${katSaatIni === '/Redaman' ? 'selected' : ''}>/Redaman</option>
+            </select>
+
+            <!-- Tombol Balas (Menandai Dikerjakan & Membuka Modal Chat) -->
+            <button onclick="handleBalasAndOpenChat('${t.tiket_id}')" 
+                    class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-blue-700">
+              💬 Balas
+            </button>
+
+            <!-- Tombol Tandai Closed -->
+            ${(activeTab !== 'open' && activeTab !== 'closed') ? `
+              <button onclick="handleCloseTicket('${t.tiket_id}')" 
+                      class="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-emerald-700">
+                ✅ Tandai Closed
+              </button>` : ''}
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // Update Status menjadi 'PROGRESS' begitu tombol "Balas" diklik, lalu buka modal chat
+    async function handleBalasAndOpenChat(tiketId) {
+      const ticket = rawTicketsData.find(t => t.tiket_id === tiketId);
+      if (!ticket) return;
+
+      const currentStatus = (ticket.status || '').toUpperCase();
+
+      // Jika tiket masih OPEN, ubah dulu statusnya ke PROGRESS di database
+      if (currentStatus === 'OPEN') {
+        try {
+          const res = await fetch('/api/update-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tiket_id: tiketId,
+              status: 'PROGRESS',
+              nama_hd: currentUser.nama,
+              nik_hd: currentUser.nik,
+              kategori_pekerjaan: ticket.kategori_pekerjaan || ''
+            })
+          });
+
+          const data = await res.json();
+          if (res.ok && data.success) {
+            ticket.status = 'PROGRESS';
+            ticket.nama_hd = currentUser.nama;
+            await loadTickets(); // Refresh daftar & counter tiket
+          } else {
+            console.warn('Gagal memperbarui status ke PROGRESS:', data.error);
+          }
+        } catch (err) {
+          console.error('Error saat menandai tiket dikerjakan:', err);
+        }
+      }
+
+      openChatModal(tiketId);
+    }
+
+    async function updateKategoriPekerjaan(tiketId, kategoriBaru) {
+      if (!kategoriBaru) return;
+
+      const ticket = rawTicketsData.find(item => item.tiket_id === tiketId);
+      const currentStatus = ticket ? ticket.status : 'OPEN';
+
+      try {
+        const res = await fetch('/api/update-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            tiket_id: tiketId, 
+            status: currentStatus,
+            kategori_pekerjaan: kategoriBaru 
+          })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          if (ticket) ticket.kategori_pekerjaan = kategoriBaru;
+        } else {
+          alert(data.error || 'Gagal menyimpan kategori');
+        }
+      } catch (err) {
+        console.error('Error update kategori:', err);
+      }
+    }
+
+    async function handleCloseTicket(tiketId) {
+      const selectElem = document.getElementById(`select-kategori-${tiketId}`);
+      const selectedKategori = selectElem ? selectElem.value : '';
+      const hashtagBawaan = ['#moban', '#helprekan', '#tolong', ''];
+
+      if (!selectedKategori || hashtagBawaan.includes(selectedKategori.toLowerCase())) {
+        alert('⚠️ Tiket tidak dapat di-Close!\nHarap pilih Kategori Pekerjaan pada dropdown terlebih dahulu.');
+        if (selectElem) selectElem.focus();
+        return;
+      }
+
+      if (!confirm(`Apakah Anda yakin ingin menutup tiket #${tiketId} dengan kategori "${selectedKategori}"?`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/update-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            tiket_id: String(tiketId),
+            status: 'CLOSED',
+            kategori_pekerjaan: selectedKategori 
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          alert(`✅ Tiket #${tiketId} berhasil di-Close.`);
+          await loadTickets();
+        } else {
+          alert(data.error || 'Gagal mengubah status');
+        }
+      } catch (e) {
+        alert('Gagal menghubungi server');
+      }
+    }
+
+    async function openChatModal(tiketId) {
+      currentActiveTiket = rawTicketsData.find(t => t.tiket_id === tiketId);
+      if (!currentActiveTiket) return;
+
+      document.getElementById('modal-title').innerText = `Tiket #${currentActiveTiket.tiket_id}`;
+      document.getElementById('modal-subtitle').innerText = `Teknisi: ${currentActiveTiket.nama_teknisi} | Segmen: ${currentActiveTiket.segmen}`;
+      document.getElementById('chat-modal').classList.remove('hidden');
+
+      document.getElementById('chat-input').value = '';
+      clearImagePreview();
+
+      loadChatMessages(tiketId);
+    }
+
+    function openImageModal(url) {
+      document.getElementById('modal-zoom-img').src = url;
+      document.getElementById('image-modal').classList.remove('hidden');
+    }
+
+    function closeImageModal() {
+      document.getElementById('image-modal').classList.add('hidden');
+      document.getElementById('modal-zoom-img').src = '';
+    }
+
+    async function loadChatMessages(tiketId) {
+      try {
+        const res = await fetch(`/api/tickets?action=get_chat&tiket_id=${encodeURIComponent(tiketId)}`);
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          const historyContainer = document.getElementById('chat-history');
+          historyContainer.innerHTML = '';
+
+          for (const msg of data.messages) {
+            const isHD = msg.sender_type === 'HD';
+            const bubble = document.createElement('div');
+            bubble.className = `flex ${isHD ? 'justify-end' : 'justify-start'}`;
+
+            let imagesHtml = '';
+            if (msg.file_id) {
+              try {
+                const imgRes = await fetch(`/api/get-file?file_id=${encodeURIComponent(msg.file_id)}`);
+                const imgData = await imgRes.json();
+
+                if (imgRes.ok && imgData.urls && imgData.urls.length > 0) {
+                  const imgTags = imgData.urls.map(url => `
+                    <div class="block overflow-hidden rounded-lg border border-black/10">
+                      <img src="${url}" 
+                           onclick="openImageModal('${url}')" 
+                           class="w-full h-32 object-cover hover:scale-105 transition duration-200 cursor-zoom-in">
+                    </div>
+                  `).join('');
+
+                  imagesHtml = `
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                      ${imgTags}
+                    </div>
+                  `;
+                }
+              } catch (e) {
+                imagesHtml = `<p class="text-xs text-red-400 italic mb-1">[Gagal memuat gambar]</p>`;
+              }
+            }
+
+            bubble.innerHTML = `
+              <div class="max-w-[80%] rounded-lg p-3 ${isHD ? 'bg-blue-600 text-white' : 'bg-white border text-gray-800'} shadow-sm">
+                <p class="text-xs font-bold ${isHD ? 'text-blue-100' : 'text-blue-600'} mb-1">${isHD ? (msg.nama_hd || 'HD') : msg.nama_teknisi}</p>
+                ${imagesHtml}
+                ${msg.pesan ? `<p class="text-sm whitespace-pre-wrap">${escapeHtml(msg.pesan)}</p>` : ''}
+                <span class="text-[10px] block text-right mt-1 opacity-70">
+                  ${msg.timestamp_created ? new Date(msg.timestamp_created).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}) : ''}
+                </span>
+              </div>
+            `;
+            historyContainer.appendChild(bubble);
+          }
+
+          historyContainer.scrollTop = historyContainer.scrollHeight;
+        }
+      } catch (err) {
+        console.error("Gagal memuat chat:", err);
+      }
+    }
+
+    function closeChatModal() {
+      document.getElementById('chat-modal').classList.add('hidden');
+      currentActiveTiket = null;
+    }
+
+    function setupPasteListener() {
+      const textarea = document.getElementById('chat-input');
+      textarea.addEventListener('paste', (e) => {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (let item of items) {
+          if (item.type.indexOf('image') === 0) {
+            const blob = item.getAsFile();
+            setImagePreview(blob);
+          }
+        }
+      });
+    }
+
+    function handleFileSelect(e) {
+      if (e.target.files && e.target.files[0]) {
+        setImagePreview(e.target.files[0]);
+      }
+    }
+
+    function setImagePreview(file) {
+      selectedImageFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById('image-preview').src = e.target.result;
+        document.getElementById('image-preview-container').classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearImagePreview() {
+      selectedImageFile = null;
+      document.getElementById('image-preview').src = '';
+      document.getElementById('image-preview-container').classList.add('hidden');
+      document.getElementById('chat-file').value = '';
+    }
+
+    async function submitReply(e) {
+      e.preventDefault();
+      const pesan = document.getElementById('chat-input').value.trim();
+      if (!pesan && !selectedImageFile) return;
+
+      const loading = document.getElementById('chat-loading');
+      loading.classList.remove('hidden');
+
+      const formData = new FormData();
+      formData.append('tiket_id', currentActiveTiket.tiket_id);
+      formData.append('parent_message_id', currentActiveTiket.message_id);
+      formData.append('chat_id', currentActiveTiket.chat_id);
+      formData.append('thread_id', currentActiveTiket.thread_id || '');
+      formData.append('pesan', pesan);
+      formData.append('hd_nama', currentUser.nama);
+      formData.append('hd_id_telegram', currentUser.id_telegram || '');
+      formData.append('segmen', currentUser.segmen);
+
+      if (selectedImageFile) {
+        formData.append('image', selectedImageFile);
+      }
+
+      try {
+        const res = await fetch('/api/reply', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          document.getElementById('chat-input').value = '';
+          clearImagePreview();
+          await loadTickets();
+          if (currentActiveTiket) loadChatMessages(currentActiveTiket.tiket_id);
+        } else {
+          alert('Gagal mengirim: ' + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Gagal mengirim balasan');
+      } finally {
+        loading.classList.add('hidden');
+      }
+    }
+
+    async function loadAnalytics() {
+      const start = document.getElementById('filter-start').value;
+      const end = document.getElementById('filter-end').value;
+
+      try {
+        const res = await fetch(`/api/tickets?action=get_analytics&segmen=${encodeURIComponent(currentUser.segmen)}&start_date=${start}&end_date=${end}`);
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          const a = data.analytics;
+          document.getElementById('stat-total').innerText = a.totalTiket;
+          document.getElementById('stat-closed').innerText = a.closedCount;
+          document.getElementById('stat-avg-response').innerText = `${a.avgResponseMinutes} mnt`;
+
+          let topHD = '-';
+          let maxAct = 0;
+          Object.entries(a.hdActivity).forEach(([name, count]) => {
+            if (count > maxAct) { maxAct = count; topHD = `${name} (${count})`; }
+          });
+          document.getElementById('stat-top-hd').innerText = topHD;
+
+          renderAnalyticsCharts(a.hdActivity, { OPEN: a.openCount, CLOSED: a.closedCount });
+        }
+      } catch (err) {
+        console.error("Gagal memuat analitik:", err);
+      }
+    }
+
+    function renderAnalyticsCharts(hdData, statusData) {
+      if (chartHDInstance) chartHDInstance.destroy();
+      if (chartStatusInstance) chartStatusInstance.destroy();
+
+      const ctxHD = document.getElementById('chart-hd-activity').getContext('2d');
+      chartHDInstance = new Chart(ctxHD, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(hdData),
+          datasets: [{ label: 'Jumlah Balasan', data: Object.values(hdData), backgroundColor: '#3B82F6' }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+      });
+
+      const ctxStatus = document.getElementById('chart-status').getContext('2d');
+      chartStatusInstance = new Chart(ctxStatus, {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(statusData),
+          datasets: [{ data: Object.values(statusData), backgroundColor: ['#EAB308', '#22C55E'] }]
+        },
+        options: { responsive: true }
+      });
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+  </script>
+</body>
+</html>

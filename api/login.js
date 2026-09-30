@@ -33,7 +33,7 @@ export default async function handler(req, res) {
 
     // Query cek user di database
     const result = await db.execute({
-      sql: 'SELECT * FROM users WHERE nik = ? AND password = ?',
+      sql: 'SELECT * FROM users_hd WHERE nik = ? AND password = ?',
       args: [nik, password]
     });
 

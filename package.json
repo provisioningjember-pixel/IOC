@@ -6,6 +6,7 @@
     "start": "vercel dev"
   },
   "dependencies": {
-    "@libsql/client": "^0.14.0"
+    "@libsql/client": "^0.14.0",
+    "telegraf": "^4.16.3"
   }
 }

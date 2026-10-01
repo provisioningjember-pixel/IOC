@@ -11,25 +11,25 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Ambil id_tiket (kode unik tiket) atau id_permintaan (ID integer DB)
-    const { id_tiket, id_permintaan, kategori_pekerjaan, kategori } = req.body;
+    const { id_permintaan, id_tiket, kategori_pekerjaan, kategori } = req.body;
     
-    const targetTiket = id_tiket || id_permintaan;
+    // Ambil nilai ID & Nilai Kategori
+    const targetId = id_permintaan || id_tiket;
     const nilaiKategori = kategori_pekerjaan !== undefined ? kategori_pekerjaan : kategori;
 
-    if (!targetTiket) {
+    if (!targetId) {
       return res.status(400).json({ 
         success: false, 
-        error: 'ID tiket atau ID permintaan wajib diisi' 
+        error: 'ID permintaan wajib diisi' 
       });
     }
 
-    // Eksekusi Update ke Turso berdasarkan id_tiket atau id_permintaan
+    // FIX: Hanya gunakan id_permintaan pada klausa WHERE
     const result = await db.execute({
       sql: `UPDATE permintaan 
             SET kategori_pekerjaan = ? 
-            WHERE id_tiket = ? OR id_permintaan = ?`,
-      args: [nilaiKategori || null, targetTiket, targetTiket]
+            WHERE id_permintaan = ?`,
+      args: [nilaiKategori || null, targetId]
     });
 
     if (result.rowsAffected === 0) {

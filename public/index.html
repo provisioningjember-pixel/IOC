@@ -442,30 +442,40 @@ async function updateKategoriPekerjaan(idPermintaan, kategori) {
 
     // ACTION 1: Update Kategori Pekerjaan
     async function updateKategoriPekerjaan(idPermintaan, kategori) {
-      try {
-        const res = await fetch('/api/update-kategori', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id_permintaan: idPermintaan,
-            kategori_pekerjaan: kategori
-          })
-        });
+  // Alert Debugging untuk mengecek ID dan Nilai Dropdown yang diklik
+  alert(`Tiket ID: ${idPermintaan}\nKategori Dipilih: ${kategori}`);
 
-        const result = await res.json();
-        if (result.success) {
-          showToast('Kategori pekerjaan berhasil diperbarui!');
-          if (activeTicket && activeTicket.id_permintaan === idPermintaan) {
-            activeTicket.kategori_pekerjaan = kategori;
-          }
-        } else {
-          alert('Gagal menyimpan kategori: ' + (result.error || 'Terjadi kesalahan'));
-        }
-      } catch (err) {
-        console.error('Gagal simpan kategori', err);
-        showToast('Gagal terhubung ke server');
+  if (!kategori) return;
+
+  try {
+    const res = await fetch('/api/update-kategori', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id_permintaan: idPermintaan,
+        kategori_pekerjaan: kategori
+      })
+    });
+
+    const result = await res.json();
+    if (result.success) {
+      showToast('Kategori pekerjaan berhasil diperbarui!');
+      
+      // Update variabel aktif jika sedang buka modal chat
+      if (activeTicket && (activeTicket.id_permintaan == idPermintaan || activeTicket.tiket_id == idPermintaan)) {
+        activeTicket.kategori_pekerjaan = kategori;
       }
+
+      // Refresh data tiket tanpa merusak tampilan (silent refresh)
+      loadTickets(true);
+    } else {
+      alert('Gagal menyimpan kategori: ' + (result.error || 'Terjadi kesalahan'));
     }
+  } catch (err) {
+    console.error('Gagal simpan kategori', err);
+    showToast('Gagal terhubung ke server');
+  }
+}
 
     // ACTION 2: Ruang Chat Modal
     function bukaRuangChat(item) {

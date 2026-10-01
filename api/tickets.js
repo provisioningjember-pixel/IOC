@@ -53,9 +53,24 @@ export default async function handler(req, res) {
 
     const result = await db.execute({ sql: query, args });
 
+    // HITUNG BADGE COUNTER UNTUK TAB
+    const countOpenRes = await db.execute({
+      sql: `SELECT COUNT(*) as total FROM permintaan WHERE LOWER(segmen) = LOWER(?) AND LOWER(status) IN ('open', 'pesan open')`,
+      args: [segmen]
+    });
+
+    const countTakenRes = await db.execute({
+      sql: `SELECT COUNT(*) as total FROM permintaan WHERE LOWER(segmen) = LOWER(?) AND LOWER(status) IN ('taken', 'dikerjakan', 'proses') AND id_telegram_hd = ?`,
+      args: [segmen, id_telegram_hd]
+    });
+
     return res.status(200).json({
       success: true,
-      data: result.rows
+      data: result.rows,
+      counts: {
+        open: countOpenRes.rows[0]?.total || 0,
+        taken: countTakenRes.rows[0]?.total || 0
+      }
     });
   } catch (error) {
     console.error('Fetch tickets error:', error);

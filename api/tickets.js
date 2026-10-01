@@ -16,34 +16,40 @@ export default async function handler(req, res) {
     let query = '';
     let args = [];
 
-    // 1. TAB OPEN: Filter segmen HD, tampilkan semua tiket yang statusnya open/pesan open
+    // Kondisi Wajib: Hanya ambil yang bertipe UTAMA (bukan BALASAN)
+    const filterPesanUtama = `AND (UPPER(msg_type) = 'UTAMA' OR msg_type IS NULL)`;
+
+    // 1. TAB OPEN: Filter segmen HD, tampilkan semua tiket utama yang statusnya open
     if (status === 'open') {
       query = `
         SELECT * FROM permintaan 
         WHERE LOWER(segmen) = LOWER(?) 
           AND LOWER(status) IN ('open', 'pesan open')
+          ${filterPesanUtama}
         ORDER BY timestamp_created DESC
       `;
       args = [segmen];
 
-    // 2. TAB DIKERJAKAN: Filter segmen HD, status dikerjakan, DAN id_telegram_hd sesuai HD yang login
+    // 2. TAB DIKERJAKAN: Filter segmen HD, status dikerjakan, DAN id_telegram_hd sesuai HD
     } else if (status === 'taken' || status === 'dikerjakan') {
       query = `
         SELECT * FROM permintaan 
         WHERE LOWER(segmen) = LOWER(?) 
           AND LOWER(status) IN ('taken', 'dikerjakan', 'proses')
           AND id_telegram_hd = ?
+          ${filterPesanUtama}
         ORDER BY timestamp_taken DESC
       `;
       args = [segmen, id_telegram_hd];
 
-    // 3. TAB CLOSED: Filter segmen HD, status close, DAN id_telegram_hd sesuai HD yang login
+    // 3. TAB CLOSED: Filter segmen HD, status close, DAN id_telegram_hd sesuai HD
     } else if (status === 'close' || status === 'closed') {
       query = `
         SELECT * FROM permintaan 
         WHERE LOWER(segmen) = LOWER(?) 
           AND LOWER(status) IN ('close', 'closed', 'selesai')
           AND id_telegram_hd = ?
+          ${filterPesanUtama}
         ORDER BY timestamp_close DESC
       `;
       args = [segmen, id_telegram_hd];
@@ -53,14 +59,27 @@ export default async function handler(req, res) {
 
     const result = await db.execute({ sql: query, args });
 
-    // HITUNG BADGE COUNTER UNTUK TAB
+    // HITUNG BADGE COUNTER (Menggunakan COUNT(DISTINCT tiket_id) & Filter Pesan Utama)
     const countOpenRes = await db.execute({
-      sql: `SELECT COUNT(*) as total FROM permintaan WHERE LOWER(segmen) = LOWER(?) AND LOWER(status) IN ('open', 'pesan open')`,
+      sql: `
+        SELECT COUNT(DISTINCT tiket_id) as total 
+        FROM permintaan 
+        WHERE LOWER(segmen) = LOWER(?) 
+          AND LOWER(status) IN ('open', 'pesan open')
+          ${filterPesanUtama}
+      `,
       args: [segmen]
     });
 
     const countTakenRes = await db.execute({
-      sql: `SELECT COUNT(*) as total FROM permintaan WHERE LOWER(segmen) = LOWER(?) AND LOWER(status) IN ('taken', 'dikerjakan', 'proses') AND id_telegram_hd = ?`,
+      sql: `
+        SELECT COUNT(DISTINCT tiket_id) as total 
+        FROM permintaan 
+        WHERE LOWER(segmen) = LOWER(?) 
+          AND LOWER(status) IN ('taken', 'dikerjakan', 'proses') 
+          AND id_telegram_hd = ?
+          ${filterPesanUtama}
+      `,
       args: [segmen, id_telegram_hd]
     });
 

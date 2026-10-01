@@ -1,13 +1,4 @@
 import { createClient } from '@libsql/client';
-import formidable from 'formidable';
-import fs from 'fs';
-
-// Matikan bodyParser bawaan Next.js / Vercel Serverless agar Formidable bisa membaca file/image
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
 
 const db = createClient({
   url: process.env.TURSO_DATABASE_URL,
@@ -20,81 +11,70 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Parse FormData (File + Fields)
-    const form = formidable({ multiples: false });
-    
-    const { fields, files } = await new Promise((resolve, reject) => {
-      form.parse(req, (err, fields, files) => {
-        if (err) reject(err);
-        else resolve({ fields, files });
-      });
-    });
-
-    // Mengambil nilai field (formidable mengembalikan string/array tergantung versi)
-    const id_permintaan = Array.isArray(fields.id_permintaan) ? fields.id_permintaan[0] : fields.id_permintaan;
-    const id_telegram_hd = Array.isArray(fields.id_telegram_hd) ? fields.id_telegram_hd[0] : fields.id_telegram_hd;
-    const pesan = Array.isArray(fields.pesan) ? fields.pesan[0] : (fields.pesan || '');
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+    const { id_permintaan, id_telegram_hd, pesan } = body;
 
     if (!id_permintaan) {
       return res.status(400).json({ success: false, error: 'id_permintaan wajib diisi' });
     }
 
-    // 1. Dapatkan info chat_id teknisi dari tabel permintaan
+    // 1. Ambil data tiket dari database
     const ticketRes = await db.execute({
-      sql: `SELECT chat_id_teknisi, tiket_id FROM permintaan WHERE id_permintaan = ?`,
+      sql: `SELECT * FROM permintaan WHERE id_permintaan = ?`,
       args: [id_permintaan]
     });
 
     if (ticketRes.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Tiket tidak ditemukan' });
+      return res.status(404).json({ success: false, error: 'Tiket tidak ditemukan di database' });
     }
 
     const ticket = ticketRes.rows[0];
 
-    // 2. Simpan pesan ke DB (tabel riwayat_chat / percakapan)
+    // Ambil Chat ID Teknisi (sesuaikan nama kolom di DB jika beda: chat_id_teknisi / id_telegram_teknisi / chat_id)
+    const chatIdTeknisi = ticket.chat_id_teknisi || ticket.id_telegram_teknisi || ticket.chat_id;
+
+    // 2. Simpan pesan ke DB (tabel riwayat_chat)
     await db.execute({
       sql: `INSERT INTO riwayat_chat (id_permintaan, pengirim, id_telegram_hd, pesan) VALUES (?, 'HD', ?, ?)`,
-      args: [id_permintaan, id_telegram_hd || null, pesan]
+      args: [id_permintaan, id_telegram_hd || null, pesan || '']
     });
 
     // 3. Kirimkan pesan balasan ke Bot Telegram Teknisi
     const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-    if (BOT_TOKEN && ticket.chat_id_teknisi) {
-      const textTelegram = `💬 *Balasan HD (Tiket #${ticket.tiket_id || id_permintaan})*:\n\n${pesan}`;
 
-      // Jika ada lampiran gambar
-      const imageFile = files.gambar ? (Array.isArray(files.gambar) ? files.gambar[0] : files.gambar) : null;
-
-      if (imageFile) {
-        // Kirim Photo via Telegram API (sendPhoto)
-        const formDataTG = new FormData();
-        formDataTG.append('chat_id', ticket.chat_id_teknisi);
-        formDataTG.append('caption', textTelegram);
-        formDataTG.append('parse_mode', 'Markdown');
-
-        const fileBuffer = fs.readFileSync(imageFile.filepath);
-        const blob = new Blob([fileBuffer], { type: imageFile.mimetype });
-        formDataTG.append('photo', blob, imageFile.originalFilename || 'image.jpg');
-
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-          method: 'POST',
-          body: formDataTG
-        });
-      } else {
-        // Kirim Teks Biasa via Telegram API (sendMessage)
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: ticket.chat_id_teknisi,
-            text: textTelegram,
-            parse_mode: 'Markdown'
-          })
-        });
-      }
+    if (!BOT_TOKEN) {
+      console.error("TELEGRAM_BOT_TOKEN belum diset di environment Variable Vercel!");
+      return res.status(200).json({ success: true, warning: 'Pesan disimpan ke DB tapi TELEGRAM_BOT_TOKEN belum diset.' });
     }
 
-    return res.status(200).json({ success: true, message: 'Pesan berhasil dikirim' });
+    if (!chatIdTeknisi) {
+      console.error(`Gagal kirim ke Telegram: chat_id_teknisi untuk id_permintaan ${id_permintaan} bernilai null/kosong.`);
+      return res.status(200).json({ success: true, warning: 'Pesan tersimpan di DB, tapi chat_id teknisi tidak ditemukan.' });
+    }
+
+    const textTelegram = `💬 Balasan HD (Tiket #${ticket.tiket_id || id_permintaan}):\n\n${pesan}`;
+
+    const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatIdTeknisi,
+        text: textTelegram
+      })
+    });
+
+    const tgResult = await tgRes.json();
+
+    if (!tgResult.ok) {
+      console.error('Telegram API Error:', tgResult);
+      return res.status(500).json({ 
+        success: false, 
+        error: `Telegram Error: ${tgResult.description}` 
+      });
+    }
+
+    return res.status(200).json({ success: true, message: 'Pesan berhasil dikirim ke database & Telegram' });
+
   } catch (error) {
     console.error('Send chat error:', error);
     return res.status(500).json({ success: false, error: error.message });

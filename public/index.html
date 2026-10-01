@@ -533,33 +533,61 @@ async function updateKategoriPekerjaan(idPermintaan, kategori) {
       }
     }
 
-    function renderChatMessages(messages) {
-      const chatBox = document.getElementById('chatBox');
-      
-      if (!messages || messages.length === 0) {
-        chatBox.innerHTML = `<div class="text-center text-muted small my-auto pt-5">Belum ada percakapan. Tulis pesan di bawah.</div>`;
-        return;
-      }
+    // Helper untuk Buka Zoom Gambar
+function openZoomImage(src) {
+  document.getElementById('zoomedImage').src = src;
+  const zoomModal = new bootstrap.Modal(document.getElementById('imageZoomModal'));
+  zoomModal.show();
+}
 
-      chatBox.innerHTML = messages.map(msg => {
-        const isHD = msg.sender_type === 'HD' || msg.id_telegram_hd;
-        const pengirimNama = isHD ? 'Anda (HD)' : (msg.nama_teknisi || msg.username_teknisi || 'Teknisi');
+// Render Percakapan + Gambar
+function renderChatMessages(messages) {
+  const chatBox = document.getElementById('chatBox');
+  
+  if (!messages || messages.length === 0) {
+    chatBox.innerHTML = `<div class="text-center text-muted small my-auto pt-5">Belum ada percakapan. Tulis pesan di bawah.</div>`;
+    return;
+  }
 
-        return `
-          <div class="d-flex flex-column ${isHD ? 'align-items-end' : 'align-items-start'} mb-2">
-            <div class="p-2 px-3 ${isHD ? 'chat-bubble-hd' : 'chat-bubble-teknisi'} shadow-sm" style="max-width: 80%;">
-              <small class="fw-bold d-block" style="font-size: 11px;">${pengirimNama}</small>
-              <p class="mb-0 small">${msg.pesan || ''}</p>
-            </div>
-            <small class="text-muted" style="font-size: 9px; margin-top: 2px;">
-              ${msg.timestamp_created || ''}
-            </small>
-          </div>
-        `;
-      }).join('');
+  chatBox.innerHTML = messages.map(msg => {
+    const isHD = msg.sender_type === 'HD' || msg.id_telegram_hd;
+    const pengirimNama = isHD ? 'Anda (HD)' : (msg.nama_teknisi || msg.username_teknisi || 'Teknisi');
+    
+    // Tentukan URL Gambar: jika file_id adalah URL/Base64, atau panggil API parser
+    let imageHtml = '';
+    if (msg.file_id) {
+      // Jika file_id berupa URL/Base64 atau link via API proxy
+      const imgUrl = msg.file_id.startsWith('http') || msg.file_id.startsWith('data:') 
+        ? msg.file_id 
+        : `/api/get-file-url?file_id=${msg.file_id}`;
 
-      chatBox.scrollTop = chatBox.scrollHeight;
+      imageHtml = `
+        <div class="mb-2">
+          <img src="${imgUrl}" 
+               class="img-fluid rounded border cursor-pointer" 
+               style="max-height: 200px; object-fit: cover; cursor: pointer;" 
+               onclick="openZoomImage('${imgUrl}')" 
+               alt="Gambar Chat" />
+        </div>
+      `;
     }
+
+    return `
+      <div class="d-flex flex-column ${isHD ? 'align-items-end' : 'align-items-start'} mb-2">
+        <div class="p-2 px-3 ${isHD ? 'chat-bubble-hd' : 'chat-bubble-teknisi'} shadow-sm" style="max-width: 80%;">
+          <small class="fw-bold d-block mb-1" style="font-size: 11px;">${pengirimNama}</small>
+          ${imageHtml}
+          ${msg.pesan ? `<p class="mb-0 small">${msg.pesan}</p>` : ''}
+        </div>
+        <small class="text-muted" style="font-size: 9px; margin-top: 2px;">
+          ${msg.timestamp_created || ''}
+        </small>
+      </div>
+    `;
+  }).join('');
+
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
 
     // ACTION: Kirim Pesan Chat
     async function sendChatMessage(e) {

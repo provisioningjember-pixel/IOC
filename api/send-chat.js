@@ -1,4 +1,13 @@
 import { createClient } from '@libsql/client';
+import formidable from 'formidable';
+import fs from 'fs';
+
+// Matikan bodyParser bawaan Next.js / Vercel Serverless agar Formidable bisa membaca file/image
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
 const db = createClient({
   url: process.env.TURSO_DATABASE_URL,
@@ -11,8 +20,24 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Pada Vercel/Node.js, kirimkan balasan ke database dan trigger Telegram Bot
-    const { id_permintaan, id_telegram_hd, pesan } = req.body;
+    // Parse FormData (File + Fields)
+    const form = formidable({ multiples: false });
+    
+    const { fields, files } = await new Promise((resolve, reject) => {
+      form.parse(req, (err, fields, files) => {
+        if (err) reject(err);
+        else resolve({ fields, files });
+      });
+    });
+
+    // Mengambil nilai field (formidable mengembalikan string/array tergantung versi)
+    const id_permintaan = Array.isArray(fields.id_permintaan) ? fields.id_permintaan[0] : fields.id_permintaan;
+    const id_telegram_hd = Array.isArray(fields.id_telegram_hd) ? fields.id_telegram_hd[0] : fields.id_telegram_hd;
+    const pesan = Array.isArray(fields.pesan) ? fields.pesan[0] : (fields.pesan || '');
+
+    if (!id_permintaan) {
+      return res.status(400).json({ success: false, error: 'id_permintaan wajib diisi' });
+    }
 
     // 1. Dapatkan info chat_id teknisi dari tabel permintaan
     const ticketRes = await db.execute({
@@ -26,25 +51,47 @@ export default async function handler(req, res) {
 
     const ticket = ticketRes.rows[0];
 
-    // 2. Simpan pesan ke DB (Misal tabel riwayat_chat)
+    // 2. Simpan pesan ke DB (tabel riwayat_chat / percakapan)
     await db.execute({
       sql: `INSERT INTO riwayat_chat (id_permintaan, pengirim, id_telegram_hd, pesan) VALUES (?, 'HD', ?, ?)`,
-      args: [id_permintaan, id_telegram_hd, pesan || '']
+      args: [id_permintaan, id_telegram_hd || null, pesan]
     });
 
-    // 3. Kirimkan pesan balasan ke Bot Telegram Teknisi via Telegram Bot API
+    // 3. Kirimkan pesan balasan ke Bot Telegram Teknisi
     const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
     if (BOT_TOKEN && ticket.chat_id_teknisi) {
       const textTelegram = `💬 *Balasan HD (Tiket #${ticket.tiket_id || id_permintaan})*:\n\n${pesan}`;
-      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: ticket.chat_id_teknisi,
-          text: textTelegram,
-          parse_mode: 'Markdown'
-        })
-      });
+
+      // Jika ada lampiran gambar
+      const imageFile = files.gambar ? (Array.isArray(files.gambar) ? files.gambar[0] : files.gambar) : null;
+
+      if (imageFile) {
+        // Kirim Photo via Telegram API (sendPhoto)
+        const formDataTG = new FormData();
+        formDataTG.append('chat_id', ticket.chat_id_teknisi);
+        formDataTG.append('caption', textTelegram);
+        formDataTG.append('parse_mode', 'Markdown');
+
+        const fileBuffer = fs.readFileSync(imageFile.filepath);
+        const blob = new Blob([fileBuffer], { type: imageFile.mimetype });
+        formDataTG.append('photo', blob, imageFile.originalFilename || 'image.jpg');
+
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+          method: 'POST',
+          body: formDataTG
+        });
+      } else {
+        // Kirim Teks Biasa via Telegram API (sendMessage)
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: ticket.chat_id_teknisi,
+            text: textTelegram,
+            parse_mode: 'Markdown'
+          })
+        });
+      }
     }
 
     return res.status(200).json({ success: true, message: 'Pesan berhasil dikirim' });

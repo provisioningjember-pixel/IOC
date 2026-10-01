@@ -13,7 +13,6 @@
     .login-container { max-width: 400px; margin: 100px auto; }
     .nav-tabs .nav-link.active { font-weight: bold; border-bottom: 3px solid #0d6efd; }
     
-    /* FIX: Hapus transform: translateY() agar tombol/dropdown tidak meloncat saat diklik */
     .ticket-card { 
       border-left: 4px solid #0d6efd; 
       transition: box-shadow 0.2s ease, border-color 0.2s ease; 
@@ -41,9 +40,8 @@
       border-radius: 12px 12px 0px 12px; 
     }
     .preview-img { max-width: 120px; max-height: 120px; border-radius: 8px; object-fit: cover; }
-    
-    /* Toast Notifikasi Ringan */
     .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1090; }
+    .cursor-pointer { cursor: pointer; }
   </style>
 </head>
 <body>
@@ -93,7 +91,7 @@
         </li>
         <li class="nav-item">
           <button class="nav-link" onclick="switchTab('dikerjakan', this)">
-            ⚙️ Dikerjakan <span id="countTaken" class="badge bg-warning text-dark rounded-pill">0</span>
+            ⚙️️ Dikerjakan <span id="countTaken" class="badge bg-warning text-dark rounded-pill">0</span>
           </button>
         </li>
         <li class="nav-item">
@@ -104,9 +102,7 @@
       </ul>
 
       <!-- Container Daftar Tiket -->
-      <div id="ticketContainer" class="row g-3">
-        <!-- Render Tiket Otomatis via JS -->
-      </div>
+      <div id="ticketContainer" class="row g-3"></div>
     </div>
   </div>
 
@@ -160,7 +156,19 @@
     </div>
   </div>
 
-  <!-- Toast Container untuk Notifikasi Ringkas -->
+  <!-- MODAL LIGHTBOX ZOOM GAMBAR -->
+  <div class="modal fade" id="imageZoomModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl text-center">
+      <div class="modal-content bg-transparent border-0">
+        <div class="modal-body p-0 position-relative">
+          <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="Close"></button>
+          <img id="zoomedImage" src="" class="img-fluid rounded shadow" style="max-height: 85vh; object-fit: contain;" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
   <div class="toast-container">
     <div id="liveToast" class="toast align-items-center text-white bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
       <div class="d-flex">
@@ -169,18 +177,6 @@
       </div>
     </div>
   </div>
-
-  <!-- Tambahkan Modal Lightbox Zoom Gambar di HTML Anda -->
-<div class="modal fade" id="imageZoomModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-xl text-center">
-    <div class="modal-content bg-transparent border-0">
-      <div class="modal-body p-0 position-relative">
-        <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="Close"></button>
-        <img id="zoomedImage" src="" class="img-fluid rounded shadow" style="max-height: 85vh; object-fit: contain;" />
-      </div>
-    </div>
-  </div>
-</div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script>
@@ -210,7 +206,6 @@
       }
     });
 
-    // Helper Toast Notifikasi
     function showToast(message) {
       document.getElementById('toastMessage').innerText = message;
       const toastEl = document.getElementById('liveToast');
@@ -218,7 +213,6 @@
       toast.show();
     }
 
-    // Login Form Handler
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const nik = document.getElementById('inputNik').value.trim();
@@ -277,7 +271,6 @@
       loadTickets();
     }
 
-    // Fetch Tiket Realtime dari Backend API
     async function loadTickets(isSilent = false) {
       const container = document.getElementById('ticketContainer');
       if (!isSilent && container.children.length === 0) {
@@ -311,123 +304,110 @@
       }
     }
 
-    // Render Kartu Tiket
-   // 1. Perbaikan pada renderTickets (bagian <select>)
-function renderTickets(tickets) {
-  const container = document.getElementById('ticketContainer');
+    function renderTickets(tickets) {
+      const container = document.getElementById('ticketContainer');
 
-  if (!tickets || tickets.length === 0) {
-    container.innerHTML = `
-      <div class="col-12 text-center p-5 text-muted bg-white rounded border">
-        Tidak ada tiket di kategori ini untuk segmen <strong>${currentUser.segmen || 'B2C'}</strong>.
-      </div>`;
-    return;
-  }
+      if (!tickets || tickets.length === 0) {
+        container.innerHTML = `
+          <div class="col-12 text-center p-5 text-muted bg-white rounded border">
+            Tidak ada tiket di kategori ini untuk segmen <strong>${currentUser.segmen || 'B2C'}</strong>.
+          </div>`;
+        return;
+      }
 
-  container.innerHTML = tickets.map(item => {
-    const currentKat = (item.kategori_pekerjaan || '').trim().toLowerCase();
+      container.innerHTML = tickets.map(item => {
+        const currentKat = (item.kategori_pekerjaan || '').trim().toLowerCase();
 
-    const optionsKategori = listKategoriSegmen.map(kat => {
-      const isSelected = kat.toLowerCase() === currentKat ? 'selected' : '';
-      return `<option value="${kat}" ${isSelected}>${kat}</option>`;
-    }).join('');
+        const optionsKategori = listKategoriSegmen.map(kat => {
+          const isSelected = kat.toLowerCase() === currentKat ? 'selected' : '';
+          return `<option value="${kat}" ${isSelected}>${kat}</option>`;
+        }).join('');
 
-    const jsonItem = JSON.stringify(item).replace(/"/g, '&quot;');
-    // Menggunakan ID Tiket/Permintaan yang aman untuk dipassing ke fungsi JS
-    const ticketId = item.id_permintaan || item.tiket_id;
+        const jsonItem = JSON.stringify(item).replace(/"/g, '&quot;');
+        const ticketId = item.id_permintaan || item.tiket_id;
 
-    return `
-    <div class="col-md-6 col-lg-4">
-      <div class="card shadow-sm border-0 ticket-card h-100">
-        <div class="card-body d-flex flex-column">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="badge bg-primary">ID: ${item.tiket_id || item.id_permintaan}</span>
-            <small class="text-muted" style="font-size:11px;">${item.timestamp_created || ''}</small>
-          </div>
-
-          <!-- Dropdown Kategori / Segmen Pekerjaan -->
-          <div class="mb-2">
-            <label class="form-label small text-muted mb-1 fw-semibold">1. Segmen Pekerjaan:</label>
-            <select class="form-select form-select-sm" 
-              ${currentStatus === 'dikerjakan' || currentStatus === 'taken' ? '' : 'disabled'}
-              onchange="updateKategoriPekerjaan('${ticketId}', this.value)">
-              <option value="">-- Pilih Segmen --</option>
-              ${optionsKategori}
-            </select>
-          </div>
-
-          <p class="card-text text-secondary small mb-3 bg-light p-2 rounded">${item.pesan || '-'}</p>
-          
-          <div class="border-top pt-2 mt-auto">
-            <div class="small text-muted mb-2">
-              👤 Teknisi: <strong>${item.nama_teknisi || item.username_teknisi || '-'}</strong>
-            </div>
-            
-            ${currentStatus === 'open' ? `
-              <button onclick="prosesDanAmbilTiket(${jsonItem})" class="btn btn-warning btn-sm w-100 fw-bold">
-                ⚡ Ambil / Balas Tiket
-              </button>
-            ` : ''}
-
-            ${currentStatus === 'dikerjakan' || currentStatus === 'taken' ? `
-              <div class="d-flex gap-2">
-                <button onclick="bukaRuangChat(${jsonItem})" class="btn btn-primary btn-sm flex-fill">
-                  2. 💬 Balas
-                </button>
-                <button onclick="tandaiClose(${jsonItem})" class="btn btn-success btn-sm flex-fill">
-                  3. ✅ Tandai Close
-                </button>
+        return `
+        <div class="col-md-6 col-lg-4">
+          <div class="card shadow-sm border-0 ticket-card h-100">
+            <div class="card-body d-flex flex-column">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="badge bg-primary">ID: ${item.tiket_id || item.id_permintaan}</span>
+                <small class="text-muted" style="font-size:11px;">${item.timestamp_created || ''}</small>
               </div>
-            ` : ''}
 
-            ${currentStatus === 'close' ? `
-              <div class="badge bg-secondary w-100 py-2">Tiket Selesai (Closed)</div>
-            ` : ''}
+              <div class="mb-2">
+                <label class="form-label small text-muted mb-1 fw-semibold">1. Segmen Pekerjaan:</label>
+                <select class="form-select form-select-sm" 
+                  ${currentStatus === 'dikerjakan' || currentStatus === 'taken' ? '' : 'disabled'}
+                  onchange="updateKategoriPekerjaan('${ticketId}', this.value)">
+                  <option value="">-- Pilih Segmen --</option>
+                  ${optionsKategori}
+                </select>
+              </div>
+
+              <p class="card-text text-secondary small mb-3 bg-light p-2 rounded">${item.pesan || '-'}</p>
+              
+              <div class="border-top pt-2 mt-auto">
+                <div class="small text-muted mb-2">
+                  👤 Teknisi: <strong>${item.nama_teknisi || item.username_teknisi || '-'}</strong>
+                </div>
+                
+                ${currentStatus === 'open' ? `
+                  <button onclick="prosesDanAmbilTiket(${jsonItem})" class="btn btn-warning btn-sm w-100 fw-bold">
+                    ⚡ Ambil / Balas Tiket
+                  </button>
+                ` : ''}
+
+                ${currentStatus === 'dikerjakan' || currentStatus === 'taken' ? `
+                  <div class="d-flex gap-2">
+                    <button onclick="bukaRuangChat(${jsonItem})" class="btn btn-primary btn-sm flex-fill">
+                      2. 💬 Balas
+                    </button>
+                    <button onclick="tandaiClose(${jsonItem})" class="btn btn-success btn-sm flex-fill">
+                      3. ✅ Tandai Close
+                    </button>
+                  </div>
+                ` : ''}
+
+                ${currentStatus === 'close' ? `
+                  <div class="badge bg-secondary w-100 py-2">Tiket Selesai (Closed)</div>
+                ` : ''}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  `}).join('');
-}
-
-// 2. Perbaikan pada ACTION 1: Update Kategori Pekerjaan + ALERT Debugging
-async function updateKategoriPekerjaan(idPermintaan, kategori) {
-  // Alert sesuai permintaan untuk mengecek ID dan Value yang dipilih
-  alert(`[DEBUG] Tiket Dipilih: ${idPermintaan}\nKategori Dipilih: ${kategori}`);
-
-  if (!kategori) return;
-
-  try {
-    const res = await fetch('/api/update-kategori', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id_permintaan: idPermintaan,
-        kategori_pekerjaan: kategori
-      })
-    });
-
-    const result = await res.json();
-    if (result.success) {
-      showToast('Kategori pekerjaan berhasil diperbarui!');
-      
-      // Update data di memori jika sedang di ruang chat
-      if (activeTicket && (activeTicket.id_permintaan == idPermintaan || activeTicket.tiket_id == idPermintaan)) {
-        activeTicket.kategori_pekerjaan = kategori;
-      }
-      
-      // Refresh list tiket agar data kartu ter-update penuh
-      loadTickets(true);
-    } else {
-      alert('Gagal menyimpan kategori ke DB: ' + (result.error || 'Terjadi kesalahan di backend'));
+      `}).join('');
     }
-  } catch (err) {
-    console.error('Gagal simpan kategori', err);
-    alert('Gagal terhubung ke API / Server saat update kategori');
-  }
-}
 
-    // ACTION: Ambil Tiket
+    async function updateKategoriPekerjaan(idPermintaan, kategori) {
+      if (!kategori) return;
+
+      try {
+        const res = await fetch('/api/update-kategori', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id_permintaan: idPermintaan,
+            kategori_pekerjaan: kategori
+          })
+        });
+
+        const result = await res.json();
+        if (result.success) {
+          showToast('Kategori pekerjaan berhasil diperbarui!');
+          if (activeTicket && (activeTicket.id_permintaan == idPermintaan || activeTicket.tiket_id == idPermintaan)) {
+            activeTicket.kategori_pekerjaan = kategori;
+          }
+          loadTickets(true);
+        } else {
+          alert('Gagal menyimpan kategori: ' + (result.error || 'Terjadi kesalahan di backend'));
+        }
+      } catch (err) {
+        console.error('Gagal simpan kategori', err);
+        alert('Gagal terhubung ke server');
+      }
+    }
+
     async function prosesDanAmbilTiket(item) {
       try {
         const res = await fetch('/api/update-status', {
@@ -452,44 +432,6 @@ async function updateKategoriPekerjaan(idPermintaan, kategori) {
       }
     }
 
-    // ACTION 1: Update Kategori Pekerjaan
-    async function updateKategoriPekerjaan(idPermintaan, kategori) {
-  // Alert Debugging untuk mengecek ID dan Nilai Dropdown yang diklik
-  alert(`Tiket ID: ${idPermintaan}\nKategori Dipilih: ${kategori}`);
-
-  if (!kategori) return;
-
-  try {
-    const res = await fetch('/api/update-kategori', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id_permintaan: idPermintaan,
-        kategori_pekerjaan: kategori
-      })
-    });
-
-    const result = await res.json();
-    if (result.success) {
-      showToast('Kategori pekerjaan berhasil diperbarui!');
-      
-      // Update variabel aktif jika sedang buka modal chat
-      if (activeTicket && (activeTicket.id_permintaan == idPermintaan || activeTicket.tiket_id == idPermintaan)) {
-        activeTicket.kategori_pekerjaan = kategori;
-      }
-
-      // Refresh data tiket tanpa merusak tampilan (silent refresh)
-      loadTickets(true);
-    } else {
-      alert('Gagal menyimpan kategori: ' + (result.error || 'Terjadi kesalahan'));
-    }
-  } catch (err) {
-    console.error('Gagal simpan kategori', err);
-    showToast('Gagal terhubung ke server');
-  }
-}
-
-    // ACTION 2: Ruang Chat Modal
     function bukaRuangChat(item) {
       activeTicket = item;
       document.getElementById('chatTicketId').innerText = `#${item.tiket_id || item.id_permintaan}`;
@@ -516,7 +458,6 @@ async function updateKategoriPekerjaan(idPermintaan, kategori) {
       activeTicket = null;
     });
 
-    // Fetch Chat Messages
     async function loadChatMessages(idPermintaan) {
       const chatBox = document.getElementById('chatBox');
       try {
@@ -533,142 +474,121 @@ async function updateKategoriPekerjaan(idPermintaan, kategori) {
       }
     }
 
-    // Helper untuk Buka Zoom Gambar
-function openZoomImage(src) {
-  document.getElementById('zoomedImage').src = src;
-  const zoomModal = new bootstrap.Modal(document.getElementById('imageZoomModal'));
-  zoomModal.show();
-}
+    function openZoomImage(src) {
+      document.getElementById('zoomedImage').src = src;
+      const zoomModal = new bootstrap.Modal(document.getElementById('imageZoomModal'));
+      zoomModal.show();
+    }
 
-// Render Percakapan + Gambar
-// Helper Buka Lightbox Zoom Gambar
-function openZoomImage(src) {
-  document.getElementById('zoomedImage').src = src;
-  const zoomModal = new bootstrap.Modal(document.getElementById('imageZoomModal'));
-  zoomModal.show();
-}
+    function renderChatMessages(messages) {
+      const chatBox = document.getElementById('chatBox');
+      
+      if (!messages || messages.length === 0) {
+        chatBox.innerHTML = `<div class="text-center text-muted small my-auto pt-5">Belum ada percakapan. Tulis pesan di bawah.</div>`;
+        return;
+      }
 
-// Render Chat dengan Tampilan Gambar Thumbnail & Zoom
-// Render Chat dengan Tampilan Multi-Gambar Thumbnail & Zoom
-function renderChatMessages(messages) {
-  const chatBox = document.getElementById('chatBox');
-  
-  if (!messages || messages.length === 0) {
-    chatBox.innerHTML = `<div class="text-center text-muted small my-auto pt-5">Belum ada percakapan. Tulis pesan di bawah.</div>`;
-    return;
-  }
+      chatBox.innerHTML = messages.map(msg => {
+        const isHD = msg.sender_type === 'HD' || msg.id_telegram_hd;
+        const pengirimNama = isHD ? 'Anda (HD)' : (msg.nama_teknisi || msg.username_teknisi || 'Teknisi');
 
-  chatBox.innerHTML = messages.map(msg => {
-    const isHD = msg.sender_type === 'HD' || msg.id_telegram_hd;
-    const pengirimNama = isHD ? 'Anda (HD)' : (msg.nama_teknisi || msg.username_teknisi || 'Teknisi');
+        let imagesGroupHtml = '';
+        if (msg.file_id && typeof msg.file_id === 'string' && msg.file_id.trim() !== '') {
+          const fileIdArray = msg.file_id.split(',').map(id => id.trim()).filter(id => id !== '');
 
-    // Parse file_id jika ada banyak (dipisahkan oleh koma)
-    let imagesGroupHtml = '';
-    
-    if (msg.file_id && typeof msg.file_id === 'string' && msg.file_id.trim() !== '') {
-      // Split string koma menjadi array ID file
-      const fileIdArray = msg.file_id.split(',').map(id => id.trim()).filter(id => id !== '');
+          const imgTags = fileIdArray.map(fId => {
+            const imgUrl = (fId.startsWith('http') || fId.startsWith('data:')) 
+              ? fId 
+              : `/api/get-file-url?file_id=${fId}`;
 
-      const imgTags = fileIdArray.map(fId => {
-        // Tentukan URL gambar (apakah URL/Base64 langsung atau via proxy Telegram)
-        const imgUrl = (fId.startsWith('http') || fId.startsWith('data:')) 
-          ? fId 
-          : `/api/get-file-url?file_id=${fId}`;
+            return `
+              <div class="p-1" style="flex: 0 0 auto;">
+                <img src="${imgUrl}" 
+                     class="img-fluid rounded border shadow-sm cursor-pointer" 
+                     style="height: 120px; width: 120px; object-fit: cover;" 
+                     onclick="openZoomImage('${imgUrl}')" 
+                     alt="Lampiran Gambar" />
+              </div>
+            `;
+          }).join('');
+
+          imagesGroupHtml = `<div class="d-flex flex-wrap gap-1 mb-2">${imgTags}</div>`;
+        }
 
         return `
-          <div class="p-1" style="flex: 0 0 auto;">
-            <img src="${imgUrl}" 
-                 class="img-fluid rounded border shadow-sm cursor-pointer" 
-                 style="height: 120px; width: 120px; object-fit: cover; cursor: pointer;" 
-                 onclick="openZoomImage('${imgUrl}')" 
-                 alt="Lampiran Gambar" />
+          <div class="d-flex flex-column ${isHD ? 'align-items-end' : 'align-items-start'} mb-2">
+            <div class="p-2 px-3 ${isHD ? 'chat-bubble-hd' : 'chat-bubble-teknisi'} shadow-sm" style="max-width: 85%;">
+              <small class="fw-bold d-block mb-1" style="font-size: 11px;">${pengirimNama}</small>
+              ${imagesGroupHtml}
+              ${msg.pesan ? `<p class="mb-0 small" style="white-space: pre-wrap;">${msg.pesan}</p>` : ''}
+            </div>
+            <small class="text-muted" style="font-size: 9px; margin-top: 2px;">
+              ${msg.timestamp_created || ''}
+            </small>
           </div>
         `;
       }).join('');
 
-      // Bungkus dalam kontainer grid / flex wrapped
-      imagesGroupHtml = `
-        <div class="d-flex flex-wrap gap-1 mb-2">
-          ${imgTags}
-        </div>
-      `;
+      chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    return `
-      <div class="d-flex flex-column ${isHD ? 'align-items-end' : 'align-items-start'} mb-2">
-        <div class="p-2 px-3 ${isHD ? 'chat-bubble-hd' : 'chat-bubble-teknisi'} shadow-sm" style="max-width: 85%;">
-          <small class="fw-bold d-block mb-1" style="font-size: 11px;">${pengirimNama}</small>
-          ${imagesGroupHtml}
-          ${msg.pesan ? `<p class="mb-0 small" style="white-space: pre-wrap;">${msg.pesan}</p>` : ''}
-        </div>
-        <small class="text-muted" style="font-size: 9px; margin-top: 2px;">
-          ${msg.timestamp_created || ''}
-        </small>
-      </div>
-    `;
-  }).join('');
+    // FUNCTION SEND CHAT & GAMBAR LENGKAP
+    async function sendChatMessage(e) {
+      if (e) e.preventDefault();
+      
+      if (!activeTicket || !activeTicket.id_permintaan) {
+        alert('Data tiket aktif tidak valid. Silakan buka kembali ruang chat.');
+        return;
+      }
 
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
+      const input = document.getElementById('chatInput');
+      const textPesan = input.value.trim();
 
-// Kirim Pesan / Gambar dari Frontend
-async function sendChatMessage(e) {
-  e.preventDefault();
-  
-  if (!activeTicket || !activeTicket.id_permintaan) {
-    alert('Data tiket aktif tidak valid. Silakan buka kembali ruang chat.');
-    return;
-  }
+      if (!textPesan && !selectedImageFile) return;
 
-  const input = document.getElementById('chatInput');
-  const textPesan = input.value.trim();
+      toggleSendLoading(true);
 
-  if (!textPesan && !selectedImageFile) return;
+      try {
+        let base64Image = null;
 
-  toggleSendLoading(true);
+        if (selectedImageFile) {
+          base64Image = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(selectedImageFile);
+          });
+        }
 
-  try {
-    let base64Image = null;
+        const payload = {
+          id_permintaan: activeTicket.id_permintaan,
+          id_telegram_hd: currentUser.id_telegram || '',
+          pesan: textPesan,
+          image_base64: base64Image
+        };
 
-    // Jika ada file gambar terlampir (Paste/File Input), konversi ke Base64
-    if (selectedImageFile) {
-      base64Image = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(selectedImageFile);
-      });
+        const res = await fetch('/api/send-chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await res.json();
+        
+        if (result.success) {
+          input.value = '';
+          clearSelectedImage();
+          await loadChatMessages(activeTicket.id_permintaan);
+        } else {
+          alert('Gagal mengirim pesan: ' + (result.error || result.warning || 'Kesalahan server'));
+        }
+      } catch (err) {
+        console.error('Send Chat Error:', err);
+        alert('Terjadi kesalahan koneksi saat mengirim pesan');
+      } finally {
+        toggleSendLoading(false);
+      }
     }
-
-    const payload = {
-      id_permintaan: activeTicket.id_permintaan,
-      id_telegram_hd: currentUser.id_telegram || '',
-      pesan: textPesan,
-      image_base64: base64Image
-    };
-
-    const res = await fetch('/api/send-chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    const result = await res.json();
-    
-    if (result.success) {
-      input.value = '';
-      clearSelectedImage();
-      await loadChatMessages(activeTicket.id_permintaan);
-    } else {
-      alert('Gagal mengirim pesan: ' + (result.error || result.warning || 'Kesalahan server'));
-    }
-  } catch (err) {
-    console.error('Send Chat Error:', err);
-    alert('Terjadi kesalahan koneksi saat mengirim pesan');
-  } finally {
-    toggleSendLoading(false);
-  }
-}
 
     function toggleSendLoading(isLoading) {
       const btnText = document.getElementById('btnSendText');
@@ -686,7 +606,6 @@ async function sendChatMessage(e) {
       }
     }
 
-    // Handle Image Preview
     function handlePasteImage(e) {
       const items = (e.clipboardData || e.originalEvent.clipboardData).items;
       for (let item of items) {
@@ -723,7 +642,6 @@ async function sendChatMessage(e) {
       document.getElementById('imagePreviewContainer').classList.add('d-none');
     }
 
-    // ACTION 3: Tandai Close Tiket
     async function tandaiClose(item) {
       if (!item.kategori_pekerjaan || item.kategori_pekerjaan.trim() === '') {
         alert('⚠️ Tiket tidak bisa di-close! Silakan pilih Dropdown Segmen Pekerjaan terlebih dahulu.');

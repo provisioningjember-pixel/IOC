@@ -1,4 +1,5 @@
 import { createClient } from '@libsql/client';
+import crypto from 'crypto';
 
 const db = createClient({
   url: process.env.TURSO_DATABASE_URL,
@@ -12,13 +13,23 @@ export default async function handler(req, res) {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-    const { id_permintaan, id_telegram_hd, pesan, image_base64, hd_nama } = body;
+    
+    // Menerima parameter bawaan web HD maupun JSON webhook Telegram
+    const { 
+      id_permintaan, 
+      id_telegram_hd, 
+      pesan, 
+      image_base64, 
+      hd_nama,
+      msg_type,    // Jika dikirim dari payload Telegram
+      sender_type  // Jika dikirim dari payload Telegram
+    } = body;
 
     if (!id_permintaan) {
       return res.status(400).json({ success: false, error: 'id_permintaan wajib diisi' });
     }
 
-    // 1. Ambil data tiket utama daripada Turso
+    // 1. Cari data tiket utama dari database
     const ticketRes = await db.execute({
       sql: `SELECT chat_id, id_telegram_teknisi, tiket_id, thread_id, message_id, segmen 
             FROM permintaan 
@@ -33,8 +44,11 @@ export default async function handler(req, res) {
 
     const ticket = ticketRes.rows[0];
     const targetChatId = ticket.chat_id || ticket.id_telegram_teknisi;
-    const parentMessageId = ticket.message_id; // ID mesej Telegram yang dibalas
+    const parentMessageId = ticket.message_id;
     const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+
+    const tiketIdInduk = ticket.tiket_id || id_permintaan;
+    const newReplyId = `rpl_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
 
     let savedFileId = null;
     let sentMessageId = null;
@@ -42,7 +56,7 @@ export default async function handler(req, res) {
     const namaPengirim = hd_nama || 'HD';
     const textWithHeader = `💬 *Balasan HD (${namaPengirim}):*\n\n${pesan || ''}`;
 
-    // 2. Jika ada penghantaran gambar Base64
+    // 2. Kirim Foto jika ada payload gambar Base64
     if (image_base64 && BOT_TOKEN && targetChatId) {
       try {
         const base64Data = image_base64.replace(/^data:image\/\w+;base64,/, '');
@@ -67,14 +81,14 @@ export default async function handler(req, res) {
           sentMessageId = tgPhotoResult.result?.message_id;
           const photos = tgPhotoResult.result?.photo;
           if (photos && photos.length > 0) {
-            savedFileId = photos[photos.length - 1].file_id; // Simpan file_id resolusi tertinggi
+            savedFileId = photos[photos.length - 1].file_id;
           }
         }
       } catch (imgErr) {
         console.error('Gagal kirim foto ke Telegram:', imgErr);
       }
     } 
-    // 3. Jika hanya mesej teks sahaja
+    // 3. Kirim Teks jika tanpa gambar
     else if (BOT_TOKEN && targetChatId && pesan) {
       const payload = {
         chat_id: targetChatId,
@@ -96,9 +110,15 @@ export default async function handler(req, res) {
       }
     }
 
-    // 4. Simpan Rekod Balasan ke Database (Menyesuaikan dengan kolom yang wujud)
+    // 4. Tentukan msg_type & sender_type secara dinamis
+    // Jika dipanggil dari endpoint web HD, default-nya 'BALASAN' & 'HD'
+    const finalMsgType = msg_type || 'BALASAN';
+    const finalSenderType = sender_type || 'HD';
+
+    // 5. Simpan Record ke Turso
     await db.execute({
       sql: `INSERT INTO permintaan (
+              id_permintaan,
               tiket_id, 
               msg_type, 
               sender_type, 
@@ -112,9 +132,12 @@ export default async function handler(req, res) {
               file_id, 
               status, 
               timestamp_created
-            ) VALUES (?, 'BALASAN', 'HD', ?, ?, ?, ?, ?, ?, ?, ?, 'dikerjakan', CURRENT_TIMESTAMP)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'dikerjakan', ?)`,
       args: [
-        ticket.tiket_id || id_permintaan,
+        newReplyId,
+        tiketIdInduk,
+        finalMsgType,
+        finalSenderType,
         targetChatId || null,
         ticket.thread_id || null,
         sentMessageId || null,
@@ -122,19 +145,25 @@ export default async function handler(req, res) {
         ticket.segmen || null,
         id_telegram_hd || null,
         pesan || '',
-        savedFileId || null
+        savedFileId || null,
+        new Date().toISOString()
       ]
     });
 
-    // 5. Kemas kini status Tiket Utama kepada 'dikerjakan' & atur timestamp_taken
+    // 6. Update Status Tiket Utama
     await db.execute({
       sql: `UPDATE permintaan 
             SET status = 'dikerjakan', 
                 id_telegram_hd = ?, 
-                timestamp_taken = COALESCE(timestamp_taken, CURRENT_TIMESTAMP)
+                timestamp_taken = COALESCE(timestamp_taken, ?)
             WHERE (id_permintaan = ? OR tiket_id = ?) 
               AND (msg_type = 'UTAMA' OR msg_type IS NULL)`,
-      args: [id_telegram_hd || null, id_permintaan, ticket.tiket_id || id_permintaan]
+      args: [
+        id_telegram_hd || null, 
+        new Date().toISOString(),
+        id_permintaan, 
+        tiketIdInduk
+      ]
     });
 
     return res.status(200).json({ success: true, message: 'Balasan berhasil dikirim & disimpan' });

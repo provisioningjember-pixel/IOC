@@ -31,6 +31,13 @@ function extractFileIds(message) {
   return fileIds.length > 0 ? fileIds.join(',') : null;
 }
 
+// Helper untuk mendapatkan ISO String Waktu Indonesia (WIB UTC+7)
+function getWibIsoString() {
+  const now = new Date();
+  const wibTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+  return wibTime.toISOString().replace('Z', '+07:00');
+}
+
 export default async function handler(req, res) {
   // Hanya terima method POST dari Telegram
   if (req.method !== 'POST') {
@@ -89,8 +96,11 @@ export default async function handler(req, res) {
 
         // 3. Pembuatan Tiket Utama (Pesan Baru dengan Hashtag)
         if (segmenInfo) {
+          //const generatedId = 'req_' + Date.now() + Math.random().toString(36).substring(2, 6);
+          //const currentTimestamp = new Date().toISOString();
+          // ✅ SESUDAH
           const generatedId = 'req_' + Date.now() + Math.random().toString(36).substring(2, 6);
-          const currentTimestamp = new Date().toISOString();
+          const currentTimestamp = getWibIsoString();
           const namaTeknisi = [message.from.first_name, message.from.last_name].filter(Boolean).join(' ');
 
           await db.execute({
@@ -147,8 +157,11 @@ export default async function handler(req, res) {
           if (parentQuery.rows.length > 0) {
             const parentData = parentQuery.rows[0];
             const parentTiketId = parentData.tiket_id;
+            //const replyGeneratedId = 'rpl_' + Date.now() + Math.random().toString(36).substring(2, 6);
+            //const currentTimestamp = new Date().toISOString();
+            // ✅ SESUDAH
             const replyGeneratedId = 'rpl_' + Date.now() + Math.random().toString(36).substring(2, 6);
-            const currentTimestamp = new Date().toISOString();
+            const currentTimestamp = getWibIsoString();
             const namaTeknisi = [message.from.first_name, message.from.last_name].filter(Boolean).join(' ');
 
             await db.execute({

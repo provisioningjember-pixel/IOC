@@ -591,51 +591,62 @@ function renderChatMessages(messages) {
 
     // ACTION: Kirim Pesan Chat
     async function sendChatMessage(e) {
-      e.preventDefault();
-      
-      if (!activeTicket || !activeTicket.id_permintaan) {
-        alert('Data tiket aktif tidak valid. Silakan tutup dan buka kembali modal chat.');
-        return;
-      }
+  e.preventDefault();
+  
+  if (!activeTicket || !activeTicket.id_permintaan) {
+    alert('Data tiket aktif tidak valid.');
+    return;
+  }
 
-      const input = document.getElementById('chatInput');
-      const textPesan = input.value.trim();
+  const input = document.getElementById('chatInput');
+  const textPesan = input.value.trim();
 
-      if (!textPesan && !selectedImageFile) return;
+  if (!textPesan && !selectedImageFile) return;
 
-      toggleSendLoading(true);
+  toggleSendLoading(true);
 
-      try {
-        const payload = {
-          id_permintaan: activeTicket.id_permintaan,
-          id_telegram_hd: currentUser.id_telegram || '',
-          pesan: textPesan
-        };
-
-        const res = await fetch('/api/send-chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        });
-
-        const result = await res.json();
-        
-        if (result.success) {
-          input.value = '';
-          clearSelectedImage();
-          await loadChatMessages(activeTicket.id_permintaan);
-        } else {
-          alert('Gagal mengirim pesan: ' + (result.error || result.warning || 'Kesalahan server'));
-        }
-      } catch (err) {
-        console.error('Send Chat Error:', err);
-        alert('Terjadi kesalahan koneksi saat mengirim pesan');
-      } finally {
-        toggleSendLoading(false);
-      }
+  try {
+    let base64Image = null;
+    
+    // Konversi file gambar ke Base64 jika ada
+    if (selectedImageFile) {
+      base64Image = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(selectedImageFile);
+      });
     }
+
+    const payload = {
+      id_permintaan: activeTicket.id_permintaan,
+      id_telegram_hd: currentUser.id_telegram || '',
+      pesan: textPesan,
+      image_base64: base64Image // dikirim ke backend untuk diunggah ke Telegram / DB
+    };
+
+    const res = await fetch('/api/send-chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await res.json();
+    
+    if (result.success) {
+      input.value = '';
+      clearSelectedImage();
+      await loadChatMessages(activeTicket.id_permintaan);
+    } else {
+      alert('Gagal mengirim pesan: ' + (result.error || result.warning || 'Kesalahan server'));
+    }
+  } catch (err) {
+    console.error('Send Chat Error:', err);
+    alert('Terjadi kesalahan koneksi saat mengirim pesan');
+  } finally {
+    toggleSendLoading(false);
+  }
+}
 
     function toggleSendLoading(isLoading) {
       const btnText = document.getElementById('btnSendText');

@@ -53,8 +53,27 @@ export default async function handler(req, res) {
     let savedFileId = null;
     let sentMessageId = null;
 
-    const namaPengirim = hd_nama || 'HD';
-    //const textWithHeader = `💬 *Balasan HD (${namaPengirim}):*\n\n${pesan || ''}`;
+    // --- CARI NAMA HD DARI TABEL users_hd ---
+    let namaPengirim = hd_nama || '';
+
+    // Jika hd_nama tidak dikirim di body tetapi ada id_telegram_hd
+    if (!namaPengirim && id_telegram_hd) {
+      const userHdRes = await db.execute({
+        sql: `SELECT nama, username FROM users_hd WHERE id_telegram = ? OR nik = ? LIMIT 1`,
+        args: [id_telegram_hd, id_telegram_hd]
+      });
+
+      if (userHdRes.rows.length > 0) {
+        namaPengirim = userHdRes.rows[0].nama || userHdRes.rows[0].username;
+      }
+    }
+
+    // Fallback default jika nama masih tidak ditemukan / kosong
+    if (!namaPengirim) {
+      namaPengirim = 'HD';
+    }
+
+    // Format Pesan
     const textWithHeader = `${pesan || ''}\n\n💬 *Balasan HD (${namaPengirim}):*`;
 
     // 2. Kirim Foto jika ada payload gambar Base64
@@ -112,7 +131,6 @@ export default async function handler(req, res) {
     }
 
     // 4. Tentukan msg_type & sender_type secara dinamis
-    // Jika dipanggil dari endpoint web HD, default-nya 'BALASAN' & 'HD'
     const finalMsgType = msg_type || 'BALASAN';
     const finalSenderType = sender_type || 'HD';
 

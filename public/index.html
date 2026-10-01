@@ -481,56 +481,80 @@
     }
 
     function renderChatMessages(messages) {
-      const chatBox = document.getElementById('chatBox');
-      
-      if (!messages || messages.length === 0) {
-        chatBox.innerHTML = `<div class="text-center text-muted small my-auto pt-5">Belum ada percakapan. Tulis pesan di bawah.</div>`;
-        return;
-      }
+  const chatBox = document.getElementById('chatBox');
+  
+  if (!messages || messages.length === 0) {
+    chatBox.innerHTML = `<div class="text-center text-muted small my-auto pt-5">Belum ada percakapan. Tulis pesan di bawah.</div>`;
+    return;
+  }
 
-      chatBox.innerHTML = messages.map(msg => {
-        const isHD = msg.sender_type === 'HD' || msg.id_telegram_hd;
-        const pengirimNama = isHD ? 'Anda (HD)' : (msg.nama_teknisi || msg.username_teknisi || 'Teknisi');
+  chatBox.innerHTML = messages.map(msg => {
+    // FIX: Hanya anggap HD jika sender_type secara eksplisit bernilai 'HD'
+    // Atau jika msg_type === 'BALASAN' dan sender_type bukan 'TEKNISI'
+    const isHD = msg.sender_type === 'HD';
+    
+    const pengirimNama = isHD 
+      ? 'Anda (HD)' 
+      : (msg.nama_teknisi || msg.username_teknisi || 'Teknisi');
 
-        let imagesGroupHtml = '';
-        if (msg.file_id && typeof msg.file_id === 'string' && msg.file_id.trim() !== '') {
-          const fileIdArray = msg.file_id.split(',').map(id => id.trim()).filter(id => id !== '');
+    let imagesGroupHtml = '';
+    if (msg.file_id && typeof msg.file_id === 'string' && msg.file_id.trim() !== '') {
+      const fileIdArray = msg.file_id.split(',').map(id => id.trim()).filter(id => id !== '');
 
-          const imgTags = fileIdArray.map(fId => {
-            const imgUrl = (fId.startsWith('http') || fId.startsWith('data:')) 
-              ? fId 
-              : `/api/get-file-url?file_id=${fId}`;
-
-            return `
-              <div class="p-1" style="flex: 0 0 auto;">
-                <img src="${imgUrl}" 
-                     class="img-fluid rounded border shadow-sm cursor-pointer" 
-                     style="height: 120px; width: 120px; object-fit: cover;" 
-                     onclick="openZoomImage('${imgUrl}')" 
-                     alt="Lampiran Gambar" />
-              </div>
-            `;
-          }).join('');
-
-          imagesGroupHtml = `<div class="d-flex flex-wrap gap-1 mb-2">${imgTags}</div>`;
-        }
+      const imgTags = fileIdArray.map(fId => {
+        const imgUrl = (fId.startsWith('http') || fId.startsWith('data:')) 
+          ? fId 
+          : `/api/get-file-url?file_id=${fId}`;
 
         return `
-          <div class="d-flex flex-column ${isHD ? 'align-items-end' : 'align-items-start'} mb-2">
-            <div class="p-2 px-3 ${isHD ? 'chat-bubble-hd' : 'chat-bubble-teknisi'} shadow-sm" style="max-width: 85%;">
-              <small class="fw-bold d-block mb-1" style="font-size: 11px;">${pengirimNama}</small>
-              ${imagesGroupHtml}
-              ${msg.pesan ? `<p class="mb-0 small" style="white-space: pre-wrap;">${msg.pesan}</p>` : ''}
-            </div>
-            <small class="text-muted" style="font-size: 9px; margin-top: 2px;">
-              ${msg.timestamp_created || ''}
-            </small>
+          <div class="p-1" style="flex: 0 0 auto;">
+            <img src="${imgUrl}" 
+                 class="img-fluid rounded border shadow-sm cursor-pointer" 
+                 style="height: 120px; width: 120px; object-fit: cover;" 
+                 onclick="openZoomImage('${imgUrl}')" 
+                 alt="Lampiran Gambar" />
           </div>
         `;
       }).join('');
 
-      chatBox.scrollTop = chatBox.scrollHeight;
+      imagesGroupHtml = `<div class="d-flex flex-wrap gap-1 mb-2">${imgTags}</div>`;
     }
+
+    // Format tampilan waktu agar lebih mudah dibaca
+    let formattedTime = msg.timestamp_created || '';
+    if (formattedTime && formattedTime.includes('T')) {
+      const d = new Date(formattedTime);
+      if (!isNaN(d.getTime())) {
+        formattedTime = d.toLocaleString('id-ID', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        }).replace(/\./g, ':');
+      }
+    }
+
+    return `
+      <div class="d-flex flex-column ${isHD ? 'align-items-end' : 'align-items-start'} mb-2">
+        <div class="p-2 px-3 ${isHD ? 'chat-bubble-hd' : 'chat-bubble-teknisi'} shadow-sm" style="max-width: 85%;">
+          <small class="fw-bold d-block mb-1" style="font-size: 11px;">${pengirimNama}</small>
+          ${imagesGroupHtml}
+          ${msg.pesan ? `<p class="mb-0 small" style="white-space: pre-wrap;">${msg.pesan}</p>` : ''}
+        </div>
+        <small class="text-muted" style="font-size: 9px; margin-top: 2px;">
+          ${formattedTime}
+        </small>
+      </div>
+    `;
+  }).join('');
+
+  // Otomatis gulir scroll ke pesan paling bawah (paling baru)
+  setTimeout(() => {
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }, 50);
+}
 
     // FUNCTION SEND CHAT & GAMBAR LENGKAP
     async function sendChatMessage(e) {

@@ -19,23 +19,29 @@ export default async function handler(req, res) {
 
     // 1. Ambil tiket_id induk
     const ticketRes = await db.execute({
-      sql: `SELECT tiket_id FROM permintaan WHERE id_permintaan = ?`,
-      args: [id_permintaan]
+      sql: `SELECT tiket_id FROM permintaan WHERE id_permintaan = ? OR tiket_id = ? LIMIT 1`,
+      args: [id_permintaan, id_permintaan]
     });
 
     const tiketId = ticketRes.rows[0]?.tiket_id || id_permintaan;
 
-    // 2. Ambil riwayat percakapan berdasarkan tiket_id atau id_permintaan
+    // 2. Ambil semua pesan
     const result = await db.execute({
       sql: `SELECT * FROM permintaan 
-            WHERE tiket_id = ? OR id_permintaan = ? 
-            ORDER BY id_permintaan ASC`,
-      args: [tiketId, id_permintaan]
+            WHERE tiket_id = ? OR id_permintaan = ?`,
+      args: [tiketId, tiketId]
+    });
+
+    // 3. SORTING DI JAVASCRIPT (Jauh lebih akurat mengonversi berbagai format Date/Timestamp)
+    const sortedMessages = result.rows.sort((a, b) => {
+      const timeA = new Date(a.timestamp_created || 0).getTime();
+      const timeB = new Date(b.timestamp_created || 0).getTime();
+      return timeA - timeB; // Dari paling lama (atas) ke paling baru (bawah)
     });
 
     return res.status(200).json({
       success: true,
-      messages: result.rows
+      messages: sortedMessages
     });
   } catch (error) {
     console.error('Get chat error:', error);

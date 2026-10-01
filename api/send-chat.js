@@ -18,9 +18,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, error: 'id_permintaan wajib diisi' });
     }
 
-    // 1. Ambil data tiket dari database
+    // 1. Ambil data tiket & Telegram ID Teknisi dari tabel permintaan
     const ticketRes = await db.execute({
-      sql: `SELECT * FROM permintaan WHERE id_permintaan = ?`,
+      sql: `SELECT chat_id, id_telegram_teknisi, tiket_id, thread_id FROM permintaan WHERE id_permintaan = ?`,
       args: [id_permintaan]
     });
 
@@ -30,50 +30,74 @@ export default async function handler(req, res) {
 
     const ticket = ticketRes.rows[0];
 
-    // Ambil Chat ID Teknisi (sesuaikan nama kolom di DB jika beda: chat_id_teknisi / id_telegram_teknisi / chat_id)
-    const chatIdTeknisi = ticket.chat_id_teknisi || ticket.id_telegram_teknisi || ticket.chat_id;
+    // Prioritas chat_id (ID Telegram ruang percakapan/teknisi)
+    const targetChatId = ticket.chat_id || ticket.id_telegram_teknisi;
 
-    // 2. Simpan pesan ke DB (tabel riwayat_chat)
+    // 2. Simpan pesan balasan HD ke tabel permintaan sebagai record pesan baru
+    // atau jika kamu punya tabel khusus riwayat_chat, sesuaikan query-nya.
     await db.execute({
-      sql: `INSERT INTO riwayat_chat (id_permintaan, pengirim, id_telegram_hd, pesan) VALUES (?, 'HD', ?, ?)`,
-      args: [id_permintaan, id_telegram_hd || null, pesan || '']
+      sql: `INSERT INTO permintaan (tiket_id, sender_type, chat_id, id_telegram_hd, pesan, status) 
+            VALUES (?, 'HD', ?, ?, ?, 'dikerjakan')`,
+      args: [
+        ticket.tiket_id || id_permintaan, 
+        targetChatId, 
+        id_telegram_hd || null, 
+        pesan || ''
+      ]
     });
 
     // 3. Kirimkan pesan balasan ke Bot Telegram Teknisi
     const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
     if (!BOT_TOKEN) {
-      console.error("TELEGRAM_BOT_TOKEN belum diset di environment Variable Vercel!");
-      return res.status(200).json({ success: true, warning: 'Pesan disimpan ke DB tapi TELEGRAM_BOT_TOKEN belum diset.' });
+      return res.status(200).json({ 
+        success: true, 
+        warning: 'Pesan tersimpan di DB, tetapi TELEGRAM_BOT_TOKEN di Environment Variable belum diset.' 
+      });
     }
 
-    if (!chatIdTeknisi) {
-      console.error(`Gagal kirim ke Telegram: chat_id_teknisi untuk id_permintaan ${id_permintaan} bernilai null/kosong.`);
-      return res.status(200).json({ success: true, warning: 'Pesan tersimpan di DB, tapi chat_id teknisi tidak ditemukan.' });
+    if (!targetChatId) {
+      return res.status(200).json({ 
+        success: true, 
+        warning: 'Pesan tersimpan di DB, tetapi chat_id / id_telegram_teknisi tidak ditemukan.' 
+      });
     }
 
-    const textTelegram = `💬 Balasan HD (Tiket #${ticket.tiket_id || id_permintaan}):\n\n${pesan}`;
+    const textTelegram = `💬 *Balasan HD (Tiket #${ticket.tiket_id || id_permintaan})*:\n\n${pesan}`;
+
+    const payload = {
+      chat_id: targetChatId,
+      text: textTelegram,
+      parse_mode: 'Markdown'
+    };
+
+    // Jika pesan Telegram menggunakan Forum Topic / Thread
+    if (ticket.thread_id) {
+      payload.message_thread_id = ticket.thread_id;
+    }
 
     const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatIdTeknisi,
-        text: textTelegram
-      })
+      body: JSON.stringify(payload)
     });
 
     const tgResult = await tgRes.json();
 
     if (!tgResult.ok) {
-      console.error('Telegram API Error:', tgResult);
-      return res.status(500).json({ 
-        success: false, 
-        error: `Telegram Error: ${tgResult.description}` 
+      console.error('Telegram Bot Error Log:', tgResult);
+      // Fallback kirim tanpa Parse Mode jika pesan mengandung karakter khusus Markdown yang error
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: targetChatId,
+          text: `💬 Balasan HD (Tiket #${ticket.tiket_id || id_permintaan}):\n\n${pesan}`
+        })
       });
     }
 
-    return res.status(200).json({ success: true, message: 'Pesan berhasil dikirim ke database & Telegram' });
+    return res.status(200).json({ success: true, message: 'Pesan berhasil dikirim ke DB & Telegram' });
 
   } catch (error) {
     console.error('Send chat error:', error);

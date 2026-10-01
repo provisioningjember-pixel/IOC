@@ -189,6 +189,37 @@
       }
     });
 
+let chatInterval = null;
+
+function bukaRuangChat(item) {
+  activeTicket = item;
+  document.getElementById('chatTicketId').innerText = `#${item.tiket_id || item.id_permintaan}`;
+  document.getElementById('chatInfo').innerHTML = `
+    <strong>Teknisi:</strong> ${item.nama_teknisi || '-'} | 
+    <strong>Kategori Pekerjaan:</strong> <span class="badge bg-info">${item.kategori_pekerjaan || 'Belum Dipilih'}</span>
+  `;
+
+  clearSelectedImage();
+  chatModalObj.show();
+  
+  // Muat pertama kali
+  loadChatMessages(item.id_permintaan);
+
+  // Auto refresh isi chat setiap 3 detik selama modal terbuka
+  if (chatInterval) clearInterval(chatInterval);
+  chatInterval = setInterval(() => {
+    loadChatMessages(item.id_permintaan);
+  }, 3000);
+}
+
+// Hentikan auto-refresh chat saat modal ditutup
+document.getElementById('chatModal').addEventListener('hidden.bs.modal', () => {
+  if (chatInterval) {
+    clearInterval(chatInterval);
+    chatInterval = null;
+  }
+});
+    
     function showLogin() {
       document.getElementById('loginSection').classList.remove('d-none');
       document.getElementById('dashboardSection').classList.add('d-none');
@@ -392,45 +423,52 @@ function renderTickets(tickets) {
     }
 
     // Fetch Chat Messages
-    async function loadChatMessages(idPermintaan) {
-      const chatBox = document.getElementById('chatBox');
-      try {
-        const res = await fetch(`/api/chat?id_permintaan=${idPermintaan}`);
-        const result = await res.json();
+    // Fetch Chat Messages dari /api/get-chats
+async function loadChatMessages(idPermintaan) {
+  const chatBox = document.getElementById('chatBox');
+  try {
+    const res = await fetch(`/api/get-chats?id_permintaan=${idPermintaan}`);
+    const result = await res.json();
 
-        if (result.success) {
-          renderChatMessages(result.messages);
-        } else {
-          chatBox.innerHTML = `<div class="text-center text-muted small p-3">Belum ada riwayat pesan.</div>`;
-        }
-      } catch (err) {
-        chatBox.innerHTML = `<div class="text-center text-danger small p-3">Gagal memuat percakapan.</div>`;
-      }
+    if (result.success && result.messages) {
+      renderChatMessages(result.messages);
+    } else {
+      chatBox.innerHTML = `<div class="text-center text-muted small p-3">Belum ada riwayat pesan.</div>`;
     }
+  } catch (err) {
+    chatBox.innerHTML = `<div class="text-center text-danger small p-3">Gagal memuat percakapan.</div>`;
+  }
+}
 
     function renderChatMessages(messages) {
-      const chatBox = document.getElementById('chatBox');
-      if (!messages || messages.length === 0) {
-        chatBox.innerHTML = `<div class="text-center text-muted small my-auto pt-5">Pesan baru akan muncul di sini.</div>`;
-        return;
-      }
+  const chatBox = document.getElementById('chatBox');
+  
+  if (!messages || messages.length === 0) {
+    chatBox.innerHTML = `<div class="text-center text-muted small my-auto pt-5">Belum ada percakapan. Tulis pesan di bawah.</div>`;
+    return;
+  }
 
-      chatBox.innerHTML = messages.map(msg => {
-        const isHD = msg.pengirim === 'HD' || msg.id_telegram_hd;
-        return `
-          <div class="d-flex flex-column ${isHD ? 'align-items-end' : 'align-items-start'} mb-2">
-            <div class="p-2 px-3 ${isHD ? 'chat-bubble-hd' : 'chat-bubble-teknisi'} shadow-sm" style="max-width: 80%;">
-              <small class="fw-bold d-block" style="font-size: 11px;">${isHD ? 'Anda (HD)' : (msg.nama_pengirim || 'Teknisi')}</small>
-              ${msg.gambar_url ? `<img src="${msg.gambar_url}" class="img-fluid rounded mb-2 border" style="max-height: 200px;" />` : ''}
-              <p class="mb-0 small">${msg.pesan || ''}</p>
-            </div>
-            <small class="text-muted" style="font-size: 9px; margin-top: 2px;">${msg.timestamp || ''}</small>
-          </div>
-        `;
-      }).join('');
+  chatBox.innerHTML = messages.map(msg => {
+    // Cek apakah pengirim dari pihak HD atau Teknisi
+    const isHD = msg.sender_type === 'HD' || msg.id_telegram_hd;
+    const pengirimNama = isHD ? 'Anda (HD)' : (msg.nama_teknisi || msg.username_teknisi || 'Teknisi');
 
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
+    return `
+      <div class="d-flex flex-column ${isHD ? 'align-items-end' : 'align-items-start'} mb-2">
+        <div class="p-2 px-3 ${isHD ? 'chat-bubble-hd' : 'chat-bubble-teknisi'} shadow-sm" style="max-width: 80%;">
+          <small class="fw-bold d-block" style="font-size: 11px;">${pengirimNama}</small>
+          <p class="mb-0 small">${msg.pesan || ''}</p>
+        </div>
+        <small class="text-muted" style="font-size: 9px; margin-top: 2px;">
+          ${msg.timestamp_created || ''}
+        </small>
+      </div>
+    `;
+  }).join('');
+
+  // Auto scroll ke pesan paling bawah
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
 
     // Handle Kirim Pesan Chat + Image + Spinner Loading
     async function sendChatMessage(e) {

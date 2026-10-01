@@ -111,7 +111,7 @@ export default async function handler(req, res) {
               null,
               mediaGroupId,
               segmenInfo.code,
-              segmenInfo.tag,
+              null,
               text,
               currentFileId,
               message.from.id,

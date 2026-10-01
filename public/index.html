@@ -180,6 +180,46 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script>
+
+// ==========================================
+// AUTO LOGOUT INAKTIF 5 MENIT
+// ==========================================
+const IDLE_TIMEOUT = 5 * 60 * 1000; // 5 Menit dalam milisekon
+let idleTimer;
+
+// Fungsi untuk mereset ulang timer
+function resetIdleTimer() {
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(autoLogout, IDLE_TIMEOUT);
+}
+
+// Fungsi yang dijalankan saat timer habis (Auto Logout)
+function autoLogout() {
+  alert("Sesi Anda telah berakhir karena tidak ada aktivitas selama 5 menit.");
+  
+  // 1. Hapus data sesi login di browser (sesuaikan nama key-nya)
+  localStorage.clear();
+  sessionStorage.clear();
+
+  // 2. Redirect ke halaman login
+  window.location.href = 'login.html'; // ganti dengan path login kamu
+}
+
+// Event listener untuk memantau aktivitas pengguna
+function setupIdleListener() {
+  const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+  
+  events.forEach(event => {
+    window.addEventListener(event, resetIdleTimer, true);
+  });
+
+  // Jalankan timer pertama kali saat halaman dimuat
+  resetIdleTimer();
+}
+
+// Panggil fungsi listener saat halaman selesai dimuat
+document.addEventListener('DOMContentLoaded', setupIdleListener);
+    
     let currentUser = JSON.parse(localStorage.getItem('hd_user')) || null;
     let currentStatus = 'open';
     let activeTicket = null;

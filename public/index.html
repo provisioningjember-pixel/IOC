@@ -549,6 +549,7 @@ function openZoomImage(src) {
 }
 
 // Render Chat dengan Tampilan Gambar Thumbnail & Zoom
+// Render Chat dengan Tampilan Multi-Gambar Thumbnail & Zoom
 function renderChatMessages(messages) {
   const chatBox = document.getElementById('chatBox');
   
@@ -561,31 +562,44 @@ function renderChatMessages(messages) {
     const isHD = msg.sender_type === 'HD' || msg.id_telegram_hd;
     const pengirimNama = isHD ? 'Anda (HD)' : (msg.nama_teknisi || msg.username_teknisi || 'Teknisi');
 
-    // Cek ketersediaan file_id gambar
-    let imageHtml = '';
-    if (msg.file_id) {
-      // Jika file_id berupa URL/Base64 langsung atau id_file Telegram via proxy
-      const imgUrl = (msg.file_id.startsWith('http') || msg.file_id.startsWith('data:')) 
-        ? msg.file_id 
-        : `/api/get-file-url?file_id=${msg.file_id}`;
+    // Parse file_id jika ada banyak (dipisahkan oleh koma)
+    let imagesGroupHtml = '';
+    
+    if (msg.file_id && typeof msg.file_id === 'string' && msg.file_id.trim() !== '') {
+      // Split string koma menjadi array ID file
+      const fileIdArray = msg.file_id.split(',').map(id => id.trim()).filter(id => id !== '');
 
-      imageHtml = `
-        <div class="mb-2">
-          <img src="${imgUrl}" 
-               class="img-fluid rounded border shadow-sm" 
-               style="max-height: 220px; object-fit: cover; cursor: pointer;" 
-               onclick="openZoomImage('${imgUrl}')" 
-               alt="Lampiran Gambar" />
+      const imgTags = fileIdArray.map(fId => {
+        // Tentukan URL gambar (apakah URL/Base64 langsung atau via proxy Telegram)
+        const imgUrl = (fId.startsWith('http') || fId.startsWith('data:')) 
+          ? fId 
+          : `/api/get-file-url?file_id=${fId}`;
+
+        return `
+          <div class="p-1" style="flex: 0 0 auto;">
+            <img src="${imgUrl}" 
+                 class="img-fluid rounded border shadow-sm cursor-pointer" 
+                 style="height: 120px; width: 120px; object-fit: cover; cursor: pointer;" 
+                 onclick="openZoomImage('${imgUrl}')" 
+                 alt="Lampiran Gambar" />
+          </div>
+        `;
+      }).join('');
+
+      // Bungkus dalam kontainer grid / flex wrapped
+      imagesGroupHtml = `
+        <div class="d-flex flex-wrap gap-1 mb-2">
+          ${imgTags}
         </div>
       `;
     }
 
     return `
       <div class="d-flex flex-column ${isHD ? 'align-items-end' : 'align-items-start'} mb-2">
-        <div class="p-2 px-3 ${isHD ? 'chat-bubble-hd' : 'chat-bubble-teknisi'} shadow-sm" style="max-width: 80%;">
+        <div class="p-2 px-3 ${isHD ? 'chat-bubble-hd' : 'chat-bubble-teknisi'} shadow-sm" style="max-width: 85%;">
           <small class="fw-bold d-block mb-1" style="font-size: 11px;">${pengirimNama}</small>
-          ${imageHtml}
-          ${msg.pesan ? `<p class="mb-0 small">${msg.pesan}</p>` : ''}
+          ${imagesGroupHtml}
+          ${msg.pesan ? `<p class="mb-0 small" style="white-space: pre-wrap;">${msg.pesan}</p>` : ''}
         </div>
         <small class="text-muted" style="font-size: 9px; margin-top: 2px;">
           ${msg.timestamp_created || ''}

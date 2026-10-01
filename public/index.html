@@ -430,43 +430,40 @@
 
     // Handle Kirim Pesan Chat + Image + Spinner Loading
     async function sendChatMessage(e) {
-      e.preventDefault();
-      const input = document.getElementById('chatInput');
-      const textPesan = input.value.trim();
+  e.preventDefault();
+  const input = document.getElementById('chatInput');
+  const textPesan = input.value.trim();
 
-      if (!textPesan && !selectedImageFile) return;
+  if (!textPesan) return;
 
-      // Tampilkan Loading GIF / Spinner
-      toggleSendLoading(true);
+  toggleSendLoading(true);
 
-      try {
-        const formData = new FormData();
-        formData.append('id_permintaan', activeTicket.id_permintaan);
-        formData.append('id_telegram_hd', currentUser.id_telegram);
-        formData.append('pesan', textPesan);
-        if (selectedImageFile) {
-          formData.append('gambar', selectedImageFile);
-        }
+  try {
+    const res = await fetch('/api/send-chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json' // Header ini wajib agar req.body dibaca
+      },
+      body: JSON.stringify({
+        id_permintaan: activeTicket.id_permintaan,
+        id_telegram_hd: currentUser.id_telegram,
+        pesan: textPesan
+      })
+    });
 
-        const res = await fetch('/api/send-chat', {
-          method: 'POST',
-          body: formData
-        });
-
-        const result = await res.json();
-        if (result.success) {
-          input.value = '';
-          clearSelectedImage();
-          loadChatMessages(activeTicket.id_permintaan);
-        } else {
-          alert('Gagal mengirim pesan: ' + result.error);
-        }
-      } catch (err) {
-        alert('Terjadi kesalahan koneksi saat mengirim pesan');
-      } finally {
-        toggleSendLoading(false);
-      }
+    const result = await res.json();
+    if (result.success) {
+      input.value = '';
+      loadChatMessages(activeTicket.id_permintaan);
+    } else {
+      alert('Gagal mengirim pesan: ' + result.error);
     }
+  } catch (err) {
+    alert('Terjadi kesalahan koneksi saat mengirim pesan');
+  } finally {
+    toggleSendLoading(false);
+  }
+}
 
     function toggleSendLoading(isLoading) {
       const btnText = document.getElementById('btnSendText');

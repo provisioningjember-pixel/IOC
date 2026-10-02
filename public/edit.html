@@ -42,51 +42,6 @@
     .preview-img { max-width: 120px; max-height: 120px; border-radius: 8px; object-fit: cover; }
     .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1090; }
     .cursor-pointer { cursor: pointer; }
-
-/* Container pesan utama */
-/* Container tempat pesan utama & preview */
-.pesan-container {
-  position: relative !important;
-  cursor: text;
-  padding-bottom: 8px; /* Jembatan area kursor */
-}
-
-/* Box preview terkunci di bawah pesan (bukan ikutan mouse) */
-.pesan-hover-preview {
-  display: none;
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 100% !important;
-  max-width: 100% !important;
-  max-height: 220px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  background-color: #0f172a;
-  color: #f8fafc;
-  border: 1px solid #334155;
-  border-radius: 8px;
-  padding: 10px;
-  font-size: 0.75rem;
-  font-family: sans-serif;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
-  z-index: 99999 !important;
-  pointer-events: auto !important; /* AGAR BISA DIMAUSKI & DI-SCROLL */
-  box-sizing: border-box;
-}
-
-/* Tampilkan kotak saat hover ke pesan ATAU ke kotak hitam itu sendiri */
-.pesan-container:hover .pesan-hover-preview,
-.pesan-hover-preview:hover {
-  display: block !important;
-}
-
-/* Biar tidak terpotong kartu */
-.ticket-card, 
-.ticket-card .card-body {
-  overflow: visible !important;
-}
-    
   </style>
 </head>
 <body>
@@ -280,18 +235,28 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
     let chatModalObj = null;
     let pollingInterval = null;
     let chatInterval = null;
+    
+    // TAMBAHKAN VARIABEL INI:
+    let isUserInteracting = false;
 
     const listKategoriSegmen = [
-      '/MO', '/DO', '/AO', '/PDA', '/Config', '/Reboot', '/SSID/Pass', '/Embassy',
+      '/MO', '/DO', '/AO','/FAILWA', '/PDA', '/Config', '/Reboot', '/SSID/Pass', '/Embassy',
       '/CekPort', '/Downtime', '/Share', '/CekInet', '/Client', '/OpenLAN', '/DetekONT',
       '/Close', '/FUP', '/CekPaket', '/Bukis', '/Unbindusee', '/Cekpayment', '/Dispatch',
       '/Shutdown', '/Assign', '/Noshutdown', '/Openportlan', '/PelurusanBW', '/Redaman'
     ];
 
     window.addEventListener('DOMContentLoaded', () => {
-      chatModalObj = new bootstrap.Modal(document.getElementById('chatModal'));
-      document.getElementById('chatModal').addEventListener('paste', handlePasteImage);
+  chatModalObj = new bootstrap.Modal(document.getElementById('chatModal'));
+  document.getElementById('chatModal').addEventListener('paste', handlePasteImage);
 
+  // TAMBAHKAN BLOK PENCEGAH HOVER INI:
+      const container = document.getElementById('ticketContainer');
+      if (container) {
+        container.addEventListener('mouseenter', () => { isUserInteracting = true; });
+        container.addEventListener('mouseleave', () => { if (!activeTicket) isUserInteracting = false; });
+      }
+    
       if (currentUser) {
         showDashboard();
       } else {
@@ -338,18 +303,21 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
     }
 
     function showDashboard() {
-      document.getElementById('loginSection').classList.add('d-none');
-      document.getElementById('dashboardSection').classList.remove('d-none');
-      document.getElementById('userInfo').innerText = `${currentUser.nama || currentUser.username} (${currentUser.nik})`;
-      document.getElementById('badgeSegmen').innerText = currentUser.segmen || 'B2C';
-      
-      loadTickets();
+  document.getElementById('loginSection').classList.add('d-none');
+  document.getElementById('dashboardSection').classList.remove('d-none');
+  document.getElementById('userInfo').innerText = `${currentUser.nama || currentUser.username} (${currentUser.nik})`;
+  document.getElementById('badgeSegmen').innerText = currentUser.segmen || 'B2C';
+  
+  loadTickets();
 
-      if (pollingInterval) clearInterval(pollingInterval);
-      pollingInterval = setInterval(() => {
-        loadTickets(true);
-      }, 4000);
-    }
+  if (pollingInterval) clearInterval(pollingInterval);
+  pollingInterval = setInterval(() => {
+    // TAMBAHKAN BARIS INI (Cegah refresh jika mouse hover / chat terbuka):
+    if (isUserInteracting) return;
+
+    loadTickets(true);
+  }, 4000);
+}
 
     function logout() {
       localStorage.removeItem('hd_user');
@@ -438,18 +406,7 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
                 </select>
               </div>
 
-                   <div class="pesan-container mb-3" onmouseenter="fetchPreviewChat('${item.id_permintaan || item.tiket_id}')">
-                      <!-- Teks Pesan Utama -->
-                      <p class="card-text text-secondary bg-light p-2 rounded mb-0" 
-                         style="white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.81rem;">
-                        ${item.pesan || '-'}
-                      </p>
-                    
-                      <!-- Box Preview Lokal -->
-                      <div id="preview-chat-${item.id_permintaan || item.tiket_id}" class="pesan-hover-preview">
-                        <span class="text-light" style="font-size: 10px;">⏳ Memuat riwayat...</span>
-                      </div>
-                    </div>
+              <p class="card-text text-secondary mb-3 bg-light p-2 rounded" style="white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.81rem;">${item.pesan || '-'}</p>
               
               <div class="border-top pt-2 mt-auto">
                 <div class="small text-muted mb-2">
@@ -537,22 +494,33 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
     }
 
     function bukaRuangChat(item) {
-      activeTicket = item;
-      document.getElementById('chatTicketId').innerText = `#${item.tiket_id || item.id_permintaan}`;
-      document.getElementById('chatInfo').innerHTML = `
-        <strong>Teknisi:</strong> ${item.nama_teknisi || '-'} | 
-        <strong>Kategori Pekerjaan:</strong> <span class="badge bg-info" id="chatInfoKategori">${item.kategori_pekerjaan || 'Belum Dipilih'}</span>
-      `;
-
-      clearSelectedImage();
-      chatModalObj.show();
-      loadChatMessages(item.id_permintaan);
-
-      if (chatInterval) clearInterval(chatInterval);
-      chatInterval = setInterval(() => {
-        if (activeTicket) loadChatMessages(activeTicket.id_permintaan);
-      }, 3000);
-    }
+          activeTicket = item;
+          isUserInteracting = true; // TAMBAHKAN BARIS INI
+        
+          document.getElementById('chatTicketId').innerText = `#${item.tiket_id || item.id_permintaan}`;
+          document.getElementById('chatInfo').innerHTML = `
+            <strong>Teknisi:</strong> ${item.nama_teknisi || '-'} | 
+            <strong>Kategori Pekerjaan:</strong> <span class="badge bg-info" id="chatInfoKategori">${item.kategori_pekerjaan || 'Belum Dipilih'}</span>
+          `;
+        
+          clearSelectedImage();
+          chatModalObj.show();
+          loadChatMessages(item.id_permintaan);
+        
+          if (chatInterval) clearInterval(chatInterval);
+          chatInterval = setInterval(() => {
+            if (activeTicket) loadChatMessages(activeTicket.id_permintaan);
+          }, 3000);
+        }
+        
+        document.getElementById('chatModal').addEventListener('hidden.bs.modal', () => {
+          if (chatInterval) {
+            clearInterval(chatInterval);
+            chatInterval = null;
+          }
+          activeTicket = null;
+          isUserInteracting = false; // TAMBAHKAN BARIS INI
+        });
 
     document.getElementById('chatModal').addEventListener('hidden.bs.modal', () => {
       if (chatInterval) {
@@ -823,79 +791,6 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
         alert('Kesalahan koneksi saat menutup tiket.');
       }
     }
-
-    // Variable cache penampung pesan sementara
-// Variable cache penampung pesan sementara
-// Variable cache penampung pesan sementara
-const previewChatCache = {};
-
-async function fetchPreviewChat(ticketId) {
-  if (!ticketId) {
-    console.warn('ID Tiket tidak ditemukan!');
-    return;
-  }
-
-  const previewBox = document.getElementById(`preview-chat-${ticketId}`);
-  if (!previewBox) return;
-
-  // Jika sudah ada di cache, langsung pakai
-  if (previewChatCache[ticketId]) {
-    previewBox.innerHTML = previewChatCache[ticketId];
-    return;
-  }
-
-  // Teks loading diperjelas warnanya
-  previewBox.innerHTML = `<span class="text-light" style="font-size: 11px;">⏳ Memuat riwayat...</span>`;
-
-  try {
-    const response = await fetch(`/api/get-chats?id_permintaan=${ticketId}`);
-    const resData = await response.json();
-
-    const messages = resData.messages || [];
-
-    if (!resData.success || messages.length === 0) {
-      const htmlKosong = `<div class="text-warning" style="font-size:11px;">Belum ada riwayat percakapan.</div>`;
-      previewChatCache[ticketId] = htmlKosong;
-      previewBox.innerHTML = htmlKosong;
-      return;
-    }
-
-    let htmlContent = `
-      <div class="fw-bold text-info border-bottom border-secondary pb-1 mb-2 d-flex justify-content-between" style="font-size: 11px;">
-        <span>💬 Riwayat Chat (${messages.length})</span>
-      </div>
-      <div class="d-flex flex-column gap-2">
-    `;
-
-    messages.forEach(msg => {
-      const isHD = msg.sender_type === 'HD';
-      const pengirim = isHD ? 'Anda (HD)' : (msg.nama_teknisi || msg.username_teknisi || 'Teknisi');
-      
-      htmlContent += `
-        <div style="border-left: 2px solid ${isHD ? '#0d6efd' : '#198754'}; padding-left: 6px;">
-          <div class="${isHD ? 'text-primary' : 'text-success'} fw-bold" style="font-size: 10px;">
-            ${pengirim}
-          </div>
-          <div class="text-light" style="white-space: pre-wrap; word-break: break-word; font-size: 11px;">${msg.pesan || ''}</div>
-        </div>
-      `;
-    });
-
-    htmlContent += `</div>`;
-
-    previewChatCache[ticketId] = htmlContent;
-    previewBox.innerHTML = htmlContent;
-
-  } catch (err) {
-    console.error('Error fetch preview chat:', err);
-    previewBox.innerHTML = `<div class="text-danger fw-bold" style="font-size:10px;">Gagal memuat pesan.</div>`;
-  }
-}
-    
   </script>
-
-  <div id="globalHoverPreview" class="pesan-hover-preview">
-  <span class="text-muted" style="font-size: 10px;">⏳ Memuat riwayat...</span>
-</div>
 </body>
 </html>

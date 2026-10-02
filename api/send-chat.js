@@ -15,6 +15,18 @@ function escapeHtml(text) {
     .replace(/>/g, '&gt;');
 }
 
+// Helper untuk mendapatkan ISO String Waktu Jakarta (WIB GMT+7)
+function getJakartaTimeString() {
+  const date = new Date();
+  // Tambahkan offset UTC+7 (7 jam * 60 menit * 60 detik * 1000 ms)
+  const jakartaOffset = 7 * 60 * 60 * 1000;
+  const jakartaDate = new Date(date.getTime() + jakartaOffset);
+  
+  return jakartaDate.toISOString().replace('Z', '+07:00');
+}
+
+
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
@@ -190,7 +202,7 @@ export default async function handler(req, res) {
         id_telegram_hd || null,
         pesan || '',
         savedFileId || null,
-        new Date().toISOString()
+        getJakartaTimeString()
       ]
     });
 
@@ -204,7 +216,7 @@ export default async function handler(req, res) {
               AND (msg_type = 'UTAMA' OR msg_type IS NULL)`,
       args: [
         id_telegram_hd || null, 
-        new Date().toISOString(),
+        getJakartaTimeString(),
         id_permintaan, 
         tiketIdInduk
       ]

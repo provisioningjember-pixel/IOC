@@ -713,7 +713,16 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
       document.getElementById('imagePreview').src = '';
       document.getElementById('imagePreviewContainer').classList.add('d-none');
     }
+    
+    
+    const chatInput = document.getElementById('chatInput');
 
+    if (chatInput) {
+      chatInput.addEventListener('input', function () {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+      });
+    }
     function handleChatKeyDown(event) {
         // Jika tombol Enter ditekan TANPA Shift
         if (event.key === 'Enter' && !event.shiftKey) {

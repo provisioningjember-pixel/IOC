@@ -16,13 +16,35 @@ function escapeHtml(text) {
 }
 
 // Helper untuk mendapatkan ISO String Waktu Jakarta (WIB GMT+7)
+// Helper untuk mendapatkan ISO String Waktu Jakarta (WIB GMT+7) yang akurat
 function getJakartaTimeString() {
   const date = new Date();
-  // Tambahkan offset UTC+7 (7 jam * 60 menit * 60 detik * 1000 ms)
-  const jakartaOffset = 7 * 60 * 60 * 1000;
-  const jakartaDate = new Date(date.getTime() + jakartaOffset);
   
-  return jakartaDate.toISOString().replace('Z', '+07:00');
+  // Format ke string waktu lokal Jakarta ISO
+  const options = {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  };
+
+  const formatter = new Intl.DateTimeFormat('en-CA', options); // en-CA menghasilkan YYYY-MM-DD
+  const parts = formatter.formatToParts(date);
+  
+  const getPart = (type) => parts.find(p => p.type === type)?.value;
+  
+  const year = getPart('year');
+  const month = getPart('month');
+  const day = getPart('day');
+  const hour = getPart('hour') === '24' ? '00' : getPart('hour');
+  const minute = getPart('minute');
+  const second = getPart('second');
+
+  return `${year}-${month}-${day}T${hour}:${minute}:${second}.000+07:00`;
 }
 
 

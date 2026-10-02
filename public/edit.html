@@ -599,10 +599,16 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
 
   const newHtml = messages.map(msg => {
     const isHD = msg.sender_type === 'HD';
+
+    // Mengambil nama HD dari hasil LEFT JOIN (msg.nama_hd / msg.username_hd)
+    // Jika tidak ada (misal data lama), fallback ke nama user yang sedang login di browser
+    const namaHdSystem = msg.nama_hd || msg.username_hd || (currentUser ? (currentUser.nama || currentUser.username) : 'HD');
     
     const pengirimNama = isHD 
-      ? 'Anda (HD)' 
+      ? `${namaHdSystem} (HD)` 
       : (msg.nama_teknisi || msg.username_teknisi || 'Teknisi');
+
+    
 
     let imagesGroupHtml = '';
     if (msg.file_id && typeof msg.file_id === 'string' && msg.file_id.trim() !== '') {

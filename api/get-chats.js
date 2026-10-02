@@ -25,14 +25,21 @@ export default async function handler(req, res) {
 
     const tiketId = ticketRes.rows[0]?.tiket_id || id_permintaan;
 
-    // 2. Ambil semua pesan
+    // 2. Ambil semua pesan + JOIN ke users_hd memakai id_telegram_hd & id_telegram
     const result = await db.execute({
-      sql: `SELECT * FROM permintaan 
-            WHERE tiket_id = ? OR id_permintaan = ?`,
+      sql: `
+        SELECT 
+          p.*,
+          u.nama AS nama_hd,
+          u.username AS username_hd
+        FROM permintaan p
+        LEFT JOIN users_hd u ON CAST(p.id_telegram_hd AS TEXT) = CAST(u.id_telegram AS TEXT)
+        WHERE p.tiket_id = ? OR p.id_permintaan = ?
+      `,
       args: [tiketId, tiketId]
     });
 
-    // 3. SORTING DI JAVASCRIPT (Jauh lebih akurat mengonversi berbagai format Date/Timestamp)
+    // 3. SORTING DI JAVASCRIPT
     const sortedMessages = result.rows.sort((a, b) => {
       const timeA = new Date(a.timestamp_created || 0).getTime();
       const timeB = new Date(b.timestamp_created || 0).getTime();

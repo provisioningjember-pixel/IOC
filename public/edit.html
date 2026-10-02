@@ -560,6 +560,9 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
     return;
   }
 
+  // Cek apakah posisi scroll user sedang berada di dekat paling bawah (toleransi 100px) sebelum DOM diperbarui
+  const isAtBottom = chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < 100;
+
   chatBox.innerHTML = messages.map(msg => {
     // FIX: Hanya anggap HD jika sender_type secara eksplisit bernilai 'HD'
     // Atau jika msg_type === 'BALASAN' dan sender_type bukan 'TEKNISI'
@@ -622,10 +625,12 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
     `;
   }).join('');
 
-  // Otomatis gulir scroll ke pesan paling bawah (paling baru)
-  setTimeout(() => {
-    chatBox.scrollTop = chatBox.scrollHeight;
-  }, 50);
+  // Hanya lakukan auto-scroll ke bawah jika posisi scroll awal memang sedang di paling bawah
+  if (isAtBottom) {
+    setTimeout(() => {
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }, 50);
+  }
 }
 
     // FUNCTION SEND CHAT & GAMBAR LENGKAP

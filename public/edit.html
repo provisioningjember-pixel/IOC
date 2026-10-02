@@ -214,7 +214,32 @@ function autoLogout() {
 }
 //----------------------
 
+// Variabel penanda apakah user sedang berinteraksi dengan area chat
+let isChatUserInteracting = false;
 
+// Event listener untuk memantau scroll & hover pada chatBox
+window.addEventListener('DOMContentLoaded', () => {
+  const chatBoxElement = document.getElementById('chatBox');
+  if (chatBoxElement) {
+    // Jika mouse masuk ke area chat
+    chatBoxElement.addEventListener('mouseenter', () => { 
+      isChatUserInteracting = true; 
+    });
+
+    // Jika mouse keluar dari area chat
+    chatBoxElement.addEventListener('mouseleave', () => { 
+      const isAtBottom = chatBoxElement.scrollHeight - chatBoxElement.scrollTop - chatBoxElement.clientHeight < 50;
+      if (isAtBottom) isChatUserInteracting = false; 
+    });
+
+    // Jika user melakukan scroll (ke atas/bawah)
+    chatBoxElement.addEventListener('scroll', () => {
+      const isAtBottom = chatBoxElement.scrollHeight - chatBoxElement.scrollTop - chatBoxElement.clientHeight < 50;
+      // Jika scroll sedang tidak di bawah, kunci auto-refresh chatBox
+      isChatUserInteracting = !isAtBottom;
+    });
+  }
+});
     
 //----------------
     

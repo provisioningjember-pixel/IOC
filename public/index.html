@@ -212,7 +212,37 @@ function autoLogout() {
   // 2. Redirect ke halaman login
   window.location.href = 'index.html'; // ganti dengan path login kamu
 }
+//----------------------
 
+// Variabel penanda apakah user sedang berinteraksi dengan area chat
+let isChatUserInteracting = false;
+
+// Event listener untuk memantau scroll & hover pada chatBox
+window.addEventListener('DOMContentLoaded', () => {
+  const chatBoxElement = document.getElementById('chatBox');
+  if (chatBoxElement) {
+    // Jika mouse masuk ke area chat
+    chatBoxElement.addEventListener('mouseenter', () => { 
+      isChatUserInteracting = true; 
+    });
+
+    // Jika mouse keluar dari area chat
+    chatBoxElement.addEventListener('mouseleave', () => { 
+      const isAtBottom = chatBoxElement.scrollHeight - chatBoxElement.scrollTop - chatBoxElement.clientHeight < 50;
+      if (isAtBottom) isChatUserInteracting = false; 
+    });
+
+    // Jika user melakukan scroll (ke atas/bawah)
+    chatBoxElement.addEventListener('scroll', () => {
+      const isAtBottom = chatBoxElement.scrollHeight - chatBoxElement.scrollTop - chatBoxElement.clientHeight < 50;
+      // Jika scroll sedang tidak di bawah, kunci auto-refresh chatBox
+      isChatUserInteracting = !isAtBottom;
+    });
+  }
+});
+    
+//----------------
+    
 // Event listener untuk memantau aktivitas pengguna
 function setupIdleListener() {
   const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
@@ -235,6 +265,9 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
     let chatModalObj = null;
     let pollingInterval = null;
     let chatInterval = null;
+    
+    // TAMBAHKAN VARIABEL INI:
+    let isUserInteracting = false;
 
     const listKategoriSegmen = [
       '/MO', '/DO', '/AO','/FAILWA', '/PDA', '/Config', '/Reboot', '/SSID/Pass', '/Embassy',
@@ -244,9 +277,16 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
     ];
 
     window.addEventListener('DOMContentLoaded', () => {
-      chatModalObj = new bootstrap.Modal(document.getElementById('chatModal'));
-      document.getElementById('chatModal').addEventListener('paste', handlePasteImage);
+  chatModalObj = new bootstrap.Modal(document.getElementById('chatModal'));
+  document.getElementById('chatModal').addEventListener('paste', handlePasteImage);
 
+  // TAMBAHKAN BLOK PENCEGAH HOVER INI:
+      const container = document.getElementById('ticketContainer');
+      if (container) {
+        container.addEventListener('mouseenter', () => { isUserInteracting = true; });
+        container.addEventListener('mouseleave', () => { if (!activeTicket) isUserInteracting = false; });
+      }
+    
       if (currentUser) {
         showDashboard();
       } else {
@@ -293,18 +333,21 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
     }
 
     function showDashboard() {
-      document.getElementById('loginSection').classList.add('d-none');
-      document.getElementById('dashboardSection').classList.remove('d-none');
-      document.getElementById('userInfo').innerText = `${currentUser.nama || currentUser.username} (${currentUser.nik})`;
-      document.getElementById('badgeSegmen').innerText = currentUser.segmen || 'B2C';
-      
-      loadTickets();
+  document.getElementById('loginSection').classList.add('d-none');
+  document.getElementById('dashboardSection').classList.remove('d-none');
+  document.getElementById('userInfo').innerText = `${currentUser.nama || currentUser.username} (${currentUser.nik})`;
+  document.getElementById('badgeSegmen').innerText = currentUser.segmen || 'B2C';
+  
+  loadTickets();
 
-      if (pollingInterval) clearInterval(pollingInterval);
-      pollingInterval = setInterval(() => {
-        loadTickets(true);
-      }, 4000);
-    }
+  if (pollingInterval) clearInterval(pollingInterval);
+  pollingInterval = setInterval(() => {
+    // TAMBAHKAN BARIS INI (Cegah refresh jika mouse hover / chat terbuka):
+    if (isUserInteracting) return;
+
+    loadTickets(true);
+  }, 4000);
+}
 
     function logout() {
       localStorage.removeItem('hd_user');
@@ -481,22 +524,33 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
     }
 
     function bukaRuangChat(item) {
-      activeTicket = item;
-      document.getElementById('chatTicketId').innerText = `#${item.tiket_id || item.id_permintaan}`;
-      document.getElementById('chatInfo').innerHTML = `
-        <strong>Teknisi:</strong> ${item.nama_teknisi || '-'} | 
-        <strong>Kategori Pekerjaan:</strong> <span class="badge bg-info" id="chatInfoKategori">${item.kategori_pekerjaan || 'Belum Dipilih'}</span>
-      `;
-
-      clearSelectedImage();
-      chatModalObj.show();
-      loadChatMessages(item.id_permintaan);
-
-      if (chatInterval) clearInterval(chatInterval);
-      chatInterval = setInterval(() => {
-        if (activeTicket) loadChatMessages(activeTicket.id_permintaan);
-      }, 3000);
-    }
+          activeTicket = item;
+          isUserInteracting = true; // TAMBAHKAN BARIS INI
+        
+          document.getElementById('chatTicketId').innerText = `#${item.tiket_id || item.id_permintaan}`;
+          document.getElementById('chatInfo').innerHTML = `
+            <strong>Teknisi:</strong> ${item.nama_teknisi || '-'} | 
+            <strong>Kategori Pekerjaan:</strong> <span class="badge bg-info" id="chatInfoKategori">${item.kategori_pekerjaan || 'Belum Dipilih'}</span>
+          `;
+        
+          clearSelectedImage();
+          chatModalObj.show();
+          loadChatMessages(item.id_permintaan);
+        
+          if (chatInterval) clearInterval(chatInterval);
+          chatInterval = setInterval(() => {
+            if (activeTicket) loadChatMessages(activeTicket.id_permintaan);
+          }, 3000);
+        }
+        
+        document.getElementById('chatModal').addEventListener('hidden.bs.modal', () => {
+          if (chatInterval) {
+            clearInterval(chatInterval);
+            chatInterval = null;
+          }
+          activeTicket = null;
+          isUserInteracting = false; // TAMBAHKAN BARIS INI
+        });
 
     document.getElementById('chatModal').addEventListener('hidden.bs.modal', () => {
       if (chatInterval) {
@@ -536,9 +590,14 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
     return;
   }
 
-  chatBox.innerHTML = messages.map(msg => {
-    // FIX: Hanya anggap HD jika sender_type secara eksplisit bernilai 'HD'
-    // Atau jika msg_type === 'BALASAN' dan sender_type bukan 'TEKNISI'
+  // Jika user sedang scroll ke atas / mengarahkan mouse di chatBox, JANGAN render ulang DOM
+  // Ini mencegah loncatan scroll akibat manipulasi innerHTML
+  const isAtBottom = chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < 50;
+  if (isChatUserInteracting && !isAtBottom) {
+    return; // Stop update DOM agar posisi scroll tidak berubah
+  }
+
+  const newHtml = messages.map(msg => {
     const isHD = msg.sender_type === 'HD';
     
     const pengirimNama = isHD 
@@ -568,7 +627,6 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
       imagesGroupHtml = `<div class="d-flex flex-wrap gap-1 mb-2">${imgTags}</div>`;
     }
 
-    // Format tampilan waktu agar lebih mudah dibaca
     let formattedTime = msg.timestamp_created || '';
     if (formattedTime && formattedTime.includes('T')) {
       const d = new Date(formattedTime);
@@ -598,10 +656,17 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
     `;
   }).join('');
 
-  // Otomatis gulir scroll ke pesan paling bawah (paling baru)
-  setTimeout(() => {
-    chatBox.scrollTop = chatBox.scrollHeight;
-  }, 50);
+  // Hanya update innerHTML jika HTML benar-benar berubah (mencegah blink/jump)
+  if (chatBox.innerHTML !== newHtml) {
+    chatBox.innerHTML = newHtml;
+    
+    // Auto-scroll ke bawah hanya jika user sebelumnya memang di paling bawah
+    if (isAtBottom) {
+      setTimeout(() => {
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }, 50);
+    }
+  }
 }
 
     // FUNCTION SEND CHAT & GAMBAR LENGKAP

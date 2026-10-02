@@ -44,37 +44,37 @@
     .cursor-pointer { cursor: pointer; }
 
 /* Container pesan sebagai acuan posisi popover */
+/* Container pesan sebagai acuan posisi popover */
 .pesan-container {
   position: relative;
 }
 
-/* Box preview melayang di bawah teks pesan */
+/* Box preview melayang di atas/bawah teks pesan */
 .pesan-hover-preview {
   display: none;
   position: absolute;
-  top: 100%;
+  top: 100%; /* Muncul tepat di bawah box pesan */
   left: 0;
   width: 100%;
-  max-height: 200px;
+  max-height: 220px;
   overflow-y: auto;
-  background-color: #1e293b; /* Warna gelap agar kontras */
+  background-color: #1e293b; /* Warna gelap rapi */
   color: #f1f5f9;
   border-radius: 8px;
   padding: 10px;
   font-size: 0.75rem;
   font-family: sans-serif;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-  z-index: 999;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+  z-index: 1050; /* Memastikan box melayang selalu di atas elemen kartu lain */
   
-  /* PENTING: Biar klik/drag tetep nembus ke teks <p> saat mau copy */
+  /* KUNCI COPY TEKS: Kursor copy tetap menembus ke teks utama */
   pointer-events: none; 
 }
 
-/* Tampilkan popover otomatis saat cursor diarahkan ke .pesan-container */
+/* Tampilkan popover HANYA saat mouse berada di dalam area .pesan-container */
 .pesan-container:hover .pesan-hover-preview {
   display: block;
 }
-
 
 
     

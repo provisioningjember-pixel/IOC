@@ -135,8 +135,16 @@
           <!-- Form Kirim Pesan -->
           <form id="chatForm" onsubmit="sendChatMessage(event)">
             <div class="input-group">
-              <input type="text" id="chatInput" class="form-control" placeholder="Tulis balasan atau paste gambar (Ctrl+V)..." autocomplete="off" />
-              <label class="btn btn-outline-secondary" for="fileInput" title="Lampirkan Gambar">
+              <!-- Mengubah input ke textarea -->
+              <textarea 
+                id="chatInput" 
+                class="form-control" 
+                placeholder="Tulis balasan... (Shift+Enter untuk baris baru, Enter untuk kirim)" 
+                rows="1" 
+                style="resize: none; max-height: 120px;"
+                onkeydown="handleChatKeyDown(event)"></textarea>
+              
+              <label class="btn btn-outline-secondary d-flex align-items-center" for="fileInput" title="Lampirkan Gambar">
                 📎
               </label>
               <input type="file" id="fileInput" accept="image/*" class="d-none" onchange="handleFileSelect(event)" />

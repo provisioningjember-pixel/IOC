@@ -44,29 +44,48 @@
     .cursor-pointer { cursor: pointer; }
 
 /* Container pesan utama */
+/* Container tempat pesan utama & preview */
 .pesan-container {
+  position: relative !important;
   cursor: text;
+  /* Jembatan padding bawah agar mouse tidak 'lepas' saat nyebrang ke kotak hitam */
+  padding-bottom: 8px; 
 }
 
-/* Floating card melayang bebas di dekat kursor mouse */
+/* Box preview melayang diam di bawah pesan */
 .pesan-hover-preview {
   display: none;
-  position: fixed;
-  width: 320px;
-  max-height: 250px;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  min-width: 320px;
+  max-height: 220px;
   overflow-y: auto;
   background-color: #0f172a;
   color: #f8fafc;
   border: 1px solid #334155;
   border-radius: 8px;
-  padding: 12px;
+  padding: 10px;
   font-size: 0.75rem;
   font-family: sans-serif;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
   z-index: 99999 !important;
 
-  /* PENTING: Mencegah kursor mendeteksi kotak hitam sebagai penghalang */
-  pointer-events: none !important; 
+  /* PENTING: Diubah ke 'auto' agar kursor BISA masuk untuk SCROLL isi chat */
+  pointer-events: auto !important; 
+}
+
+/* Tampilkan kotak hitam jika mouse berada di atas teks ATAU di atas kotak hitam itu sendiri */
+.pesan-container:hover .pesan-hover-preview,
+.pesan-hover-preview:hover {
+  display: block !important;
+}
+
+/* Mencegah kartu memotong box preview */
+.ticket-card, 
+.ticket-card .card-body {
+  overflow: visible !important;
 }
     
   </style>

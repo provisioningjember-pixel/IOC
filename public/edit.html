@@ -212,7 +212,37 @@ function autoLogout() {
   // 2. Redirect ke halaman login
   window.location.href = 'index.html'; // ganti dengan path login kamu
 }
+//----------------------
 
+// Variabel penanda apakah user sedang berinteraksi dengan area chat
+let isChatUserInteracting = false;
+
+// Event listener untuk memantau scroll & hover pada chatBox
+window.addEventListener('DOMContentLoaded', () => {
+  const chatBoxElement = document.getElementById('chatBox');
+  if (chatBoxElement) {
+    // Jika mouse masuk ke area chat
+    chatBoxElement.addEventListener('mouseenter', () => { 
+      isChatUserInteracting = true; 
+    });
+
+    // Jika mouse keluar dari area chat
+    chatBoxElement.addEventListener('mouseleave', () => { 
+      const isAtBottom = chatBoxElement.scrollHeight - chatBoxElement.scrollTop - chatBoxElement.clientHeight < 50;
+      if (isAtBottom) isChatUserInteracting = false; 
+    });
+
+    // Jika user melakukan scroll (ke atas/bawah)
+    chatBoxElement.addEventListener('scroll', () => {
+      const isAtBottom = chatBoxElement.scrollHeight - chatBoxElement.scrollTop - chatBoxElement.clientHeight < 50;
+      // Jika scroll sedang tidak di bawah, kunci auto-refresh chatBox
+      isChatUserInteracting = !isAtBottom;
+    });
+  }
+});
+    
+//----------------
+    
 // Event listener untuk memantau aktivitas pengguna
 function setupIdleListener() {
   const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
@@ -560,12 +590,14 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
     return;
   }
 
-  // Cek apakah posisi scroll user sedang berada di dekat paling bawah (toleransi 100px) sebelum DOM diperbarui
-  const isAtBottom = chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < 100;
+  // Jika user sedang scroll ke atas / mengarahkan mouse di chatBox, JANGAN render ulang DOM
+  // Ini mencegah loncatan scroll akibat manipulasi innerHTML
+  const isAtBottom = chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < 50;
+  if (isChatUserInteracting && !isAtBottom) {
+    return; // Stop update DOM agar posisi scroll tidak berubah
+  }
 
-  chatBox.innerHTML = messages.map(msg => {
-    // FIX: Hanya anggap HD jika sender_type secara eksplisit bernilai 'HD'
-    // Atau jika msg_type === 'BALASAN' dan sender_type bukan 'TEKNISI'
+  const newHtml = messages.map(msg => {
     const isHD = msg.sender_type === 'HD';
     
     const pengirimNama = isHD 
@@ -595,7 +627,6 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
       imagesGroupHtml = `<div class="d-flex flex-wrap gap-1 mb-2">${imgTags}</div>`;
     }
 
-    // Format tampilan waktu agar lebih mudah dibaca
     let formattedTime = msg.timestamp_created || '';
     if (formattedTime && formattedTime.includes('T')) {
       const d = new Date(formattedTime);
@@ -625,11 +656,16 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
     `;
   }).join('');
 
-  // Hanya lakukan auto-scroll ke bawah jika posisi scroll awal memang sedang di paling bawah
-  if (isAtBottom) {
-    setTimeout(() => {
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }, 50);
+  // Hanya update innerHTML jika HTML benar-benar berubah (mencegah blink/jump)
+  if (chatBox.innerHTML !== newHtml) {
+    chatBox.innerHTML = newHtml;
+    
+    // Auto-scroll ke bawah hanya jika user sebelumnya memang di paling bawah
+    if (isAtBottom) {
+      setTimeout(() => {
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }, 50);
+    }
   }
 }
 

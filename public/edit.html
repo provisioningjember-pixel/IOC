@@ -439,16 +439,18 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
                 </select>
               </div>
 
-                   <div class="pesan-container mb-3" 
-                     onmouseenter="handleMouseEnterPreview(event, '${ticketId}')" 
-                     onmousemove="updatePreviewPosition(event)" 
-                     onmouseleave="handleMouseLeavePreview()">
-                  
-                  <p class="card-text text-secondary bg-light p-2 rounded mb-0" 
-                     style="white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.81rem;">
-                    ${item.pesan || '-'}
-                  </p>
-                </div>
+                   <div class="pesan-container mb-3" onmouseenter="fetchPreviewChat('${ticketId}')">
+                      <!-- Teks pesan utama -->
+                      <p class="card-text text-secondary bg-light p-2 rounded mb-0" 
+                         style="white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.81rem;">
+                        ${item.pesan || '-'}
+                      </p>
+                    
+                      <!-- Kotak hitam lokal di dalam kartu -->
+                      <div id="preview-chat-${ticketId}" class="pesan-hover-preview">
+                        <span class="text-muted" style="font-size: 10px;">⏳ Memuat riwayat...</span>
+                      </div>
+                    </div>
               
               <div class="border-top pt-2 mt-auto">
                 <div class="small text-muted mb-2">

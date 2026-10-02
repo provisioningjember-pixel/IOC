@@ -42,6 +42,14 @@
     .preview-img { max-width: 120px; max-height: 120px; border-radius: 8px; object-fit: cover; }
     .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1090; }
     .cursor-pointer { cursor: pointer; }
+
+    .chat-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
   </style>
 </head>
 <body>
@@ -589,7 +597,7 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
         <div class="p-2 px-3 ${isHD ? 'chat-bubble-hd' : 'chat-bubble-teknisi'} shadow-sm" style="max-width: 85%;">
           <small class="fw-bold d-block mb-1" style="font-size: 11px;">${pengirimNama}</small>
           ${imagesGroupHtml}
-          ${msg.pesan ? `<p class="mb-0 small" style="white-space: pre-wrap;">${msg.pesan}</p>` : ''}
+          ${msg.pesan ? `<div class="chat-text mb-0">${msg.pesan}</div>` : ''}
         </div>
         <small class="text-muted" style="font-size: 9px; margin-top: 2px;">
           ${formattedTime}

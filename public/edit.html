@@ -43,13 +43,16 @@
     .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1090; }
     .cursor-pointer { cursor: pointer; }
 
-    .chat-text {
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 0.82rem;
-  line-height: 1.45;
-}
+/* Style Teks Format Telegram (Monospace & Break Line) */
+    .telegram-format {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.81rem;
+      line-height: 1.4;
+    }
+
+    
   </style>
 </head>
 <body>
@@ -142,27 +145,27 @@
 
           <!-- Form Kirim Pesan -->
           <form id="chatForm" onsubmit="sendChatMessage(event)">
-            <div class="input-group">
-              <!-- Mengubah input ke textarea -->
-              <textarea 
-                id="chatInput" 
-                class="form-control" 
-                placeholder="Tulis balasan... (Shift+Enter untuk baris baru, Enter untuk kirim)" 
-                rows="1" 
-                style="resize: none; max-height: 120px;"
-                onkeydown="handleChatKeyDown(event)"></textarea>
-              
-              <label class="btn btn-outline-secondary d-flex align-items-center" for="fileInput" title="Lampirkan Gambar">
-                📎
-              </label>
-              <input type="file" id="fileInput" accept="image/*" class="d-none" onchange="handleFileSelect(event)" />
-              
-              <button class="btn btn-primary d-flex align-items-center gap-2" type="submit" id="btnSendChat">
-                <span id="btnSendText">Kirim Pesan</span>
-                <span id="btnSendLoading" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-              </button>
-            </div>
-          </form>
+              <div class="input-group">
+                <!-- Mengubah input ke textarea -->
+                <textarea 
+                  id="chatInput" 
+                  class="form-control" 
+                  placeholder="Tulis balasan... (Shift+Enter untuk baris baru, Enter untuk kirim)" 
+                  rows="1" 
+                  style="resize: none; max-height: 120px;"
+                  onkeydown="handleChatKeyDown(event)"></textarea>
+                
+                <label class="btn btn-outline-secondary d-flex align-items-center" for="fileInput" title="Lampirkan Gambar">
+                  📎
+                </label>
+                <input type="file" id="fileInput" accept="image/*" class="d-none" onchange="handleFileSelect(event)" />
+                
+                <button class="btn btn-primary d-flex align-items-center gap-2" type="submit" id="btnSendChat">
+                  <span id="btnSendText">Kirim Pesan</span>
+                  <span id="btnSendLoading" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                </button>
+              </div>
+            </form>
         </div>
         <div class="modal-footer d-flex justify-content-between">
           <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
@@ -218,7 +221,7 @@ function autoLogout() {
   sessionStorage.clear();
 
   // 2. Redirect ke halaman login
-  window.location.href = 'login.html'; // ganti dengan path login kamu
+  window.location.href = 'index.html'; // ganti dengan path login kamu
 }
 
 // Event listener untuk memantau aktivitas pengguna
@@ -401,7 +404,9 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
                 </select>
               </div>
 
-              <p class="card-text text-secondary small mb-3 bg-light p-2 rounded">${item.pesan || '-'}</p>
+              <!-- Menambahkan class telegram-format agar teks terformat rapi & nge-enter -->
+              <p class="card-text text-secondary mb-3 bg-light p-2 rounded telegram-format">${item.pesan || '-'}</p>
+              
               
               <div class="border-top pt-2 mt-auto">
                 <div class="small text-muted mb-2">
@@ -597,7 +602,8 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
         <div class="p-2 px-3 ${isHD ? 'chat-bubble-hd' : 'chat-bubble-teknisi'} shadow-sm" style="max-width: 85%;">
           <small class="fw-bold d-block mb-1" style="font-size: 11px;">${pengirimNama}</small>
           ${imagesGroupHtml}
-          ${msg.pesan ? `<div class="chat-text mb-0">${msg.pesan}</div>` : ''}
+         
+          ${msg.pesan ? `<div class="mb-0 telegram-format">${msg.pesan}</div>` : ''}
         </div>
         <small class="text-muted" style="font-size: 9px; margin-top: 2px;">
           ${formattedTime}
@@ -721,17 +727,17 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
       document.getElementById('imagePreview').src = '';
       document.getElementById('imagePreviewContainer').classList.add('d-none');
     }
-    
-    
-    const chatInput = document.getElementById('chatInput');
 
-    if (chatInput) {
-      chatInput.addEventListener('input', function () {
-        this.style.height = 'auto';
-        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-      });
-    }
-    function handleChatKeyDown(event) {
+      const chatInput = document.getElementById('chatInput');
+      
+      if (chatInput) {
+        chatInput.addEventListener('input', function () {
+          this.style.height = 'auto';
+          this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+      }
+      
+          function handleChatKeyDown(event) {
         // Jika tombol Enter ditekan TANPA Shift
         if (event.key === 'Enter' && !event.shiftKey) {
           event.preventDefault(); // Mencegah buat baris baru (enter kebawah)

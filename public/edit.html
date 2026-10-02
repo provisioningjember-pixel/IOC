@@ -714,6 +714,20 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
       document.getElementById('imagePreviewContainer').classList.add('d-none');
     }
 
+    function handleChatKeyDown(event) {
+        // Jika tombol Enter ditekan TANPA Shift
+        if (event.key === 'Enter' && !event.shiftKey) {
+          event.preventDefault(); // Mencegah buat baris baru (enter kebawah)
+          
+          // Jalankan fungsi kirim pesan yang dipanggil oleh form
+          const chatForm = document.getElementById('chatForm');
+          if (chatForm) {
+            chatForm.requestSubmit(); // Memicu event onsubmit="sendChatMessage(event)"
+          }
+        }
+        // Jika Shift + Enter ditekan, browser akan otomatis membuat baris baru (kebawah)
+      }
+
     async function tandaiClose(item) {
       if (!item.kategori_pekerjaan || item.kategori_pekerjaan.trim() === '') {
         alert('⚠️ Tiket tidak bisa di-close! Silakan pilih Dropdown Segmen Pekerjaan terlebih dahulu.');

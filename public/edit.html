@@ -50,25 +50,23 @@
 }
 
 /* Box preview melayang di atas/bawah teks pesan */
+/* Box preview melayang mengikuti kursor mouse */
 .pesan-hover-preview {
   display: none;
-  position: absolute;
-  top: 100%; /* Muncul tepat di bawah box pesan */
-  left: 0;
-  width: 100%;
-  max-height: 220px;
+  position: fixed; /* Menggunakan fixed agar posisinya mengikuti koordinat layar */
+  width: 320px;
+  max-height: 250px;
   overflow-y: auto;
-  background-color: #1e293b; /* Warna gelap rapi */
-  color: #f1f5f9;
+  background-color: #0f172a; /* Warna dark elegan */
+  color: #f8fafc;
+  border: 1px solid #334155;
   border-radius: 8px;
-  padding: 10px;
+  padding: 12px;
   font-size: 0.75rem;
   font-family: sans-serif;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
-  z-index: 1050; /* Memastikan box melayang selalu di atas elemen kartu lain */
-  
-  /* KUNCI COPY TEKS: Kursor copy tetap menembus ke teks utama */
-  pointer-events: none; 
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  z-index: 9999; /* Selalu di paling atas layer */
+  pointer-events: none; /* Kursor copy tetap menembus ke teks utama */
 }
 
 /* Tampilkan popover HANYA saat mouse berada di dalam area .pesan-container */

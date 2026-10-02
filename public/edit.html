@@ -822,28 +822,31 @@ async function fetchPreviewChat(ticketId) {
   const previewBox = document.getElementById(`preview-chat-${ticketId}`);
   if (!previewBox) return;
 
-  // 1. Cek apakah tiket ini sudah pernah di-fetch sebelumnya
+  // 1. Cek cache
   if (previewChatCache[ticketId]) {
     previewBox.innerHTML = previewChatCache[ticketId];
     return;
   }
 
   try {
-    // 2. Sesuaikan endpoint URL ini dengan API / Apps Script backend milikmu
-    const response = await fetch(`/api/get-chat?tiket_id=${ticketId}`);
+    // 2. Sesuaikan nama endpoint (get-chats atau get-chat tergantung nama file .js kamu)
+    const response = await fetch(`/api/get-chats?id_permintaan=${ticketId}`);
     const resData = await response.json();
 
-    const messages = resData.data || resData.messages || [];
+    if (!resData.success) {
+      throw new Error(resData.error || 'Gagal mengambil data dari server');
+    }
 
-    // Jika belum ada pesan/balasan di database
+    const messages = resData.messages || [];
+
     if (messages.length === 0) {
-      const htmlKosong = `<div class="text-muted" style="font-size:11px;">Belum ada riwayat pesan.</div>`;
+      const htmlKosong = `<div class="text-muted" style="font-size:11px;">Belum ada riwayat percakapan.</div>`;
       previewChatCache[ticketId] = htmlKosong;
       previewBox.innerHTML = htmlKosong;
       return;
     }
 
-    // 3. Susun isi riwayat pesan melayang
+    // 3. Susun Tampilan Riwayat Pesan
     let htmlContent = `
       <div class="fw-bold text-info border-bottom border-secondary pb-1 mb-2 d-flex justify-content-between" style="font-size: 11px;">
         <span>💬 Riwayat Chat (${messages.length})</span>
@@ -853,7 +856,7 @@ async function fetchPreviewChat(ticketId) {
 
     messages.forEach(msg => {
       const isHD = msg.sender_type === 'HD';
-      const pengirim = isHD ? 'HD' : (msg.nama_teknisi || 'Teknisi');
+      const pengirim = isHD ? 'Anda (HD)' : (msg.nama_teknisi || msg.username_teknisi || 'Teknisi');
       
       htmlContent += `
         <div style="border-left: 2px solid ${isHD ? '#0d6efd' : '#198754'}; padding-left: 6px;">
@@ -867,7 +870,6 @@ async function fetchPreviewChat(ticketId) {
 
     htmlContent += `</div>`;
 
-    // 4. Simpan ke cache & render ke UI
     previewChatCache[ticketId] = htmlContent;
     previewBox.innerHTML = htmlContent;
 

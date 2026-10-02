@@ -48,20 +48,20 @@
 .pesan-container {
   position: relative !important;
   cursor: text;
-  /* Jembatan padding bawah agar mouse tidak 'lepas' saat nyebrang ke kotak hitam */
-  padding-bottom: 8px; 
+  padding-bottom: 8px; /* Jembatan area kursor */
 }
 
-/* Box preview melayang diam di bawah pesan */
+/* Box preview terkunci di bawah pesan (bukan ikutan mouse) */
 .pesan-hover-preview {
   display: none;
   position: absolute;
   top: 100%;
   left: 0;
-  width: 100%;
-  min-width: 320px;
+  width: 100% !important;
+  max-width: 100% !important;
   max-height: 220px;
   overflow-y: auto;
+  overflow-x: hidden;
   background-color: #0f172a;
   color: #f8fafc;
   border: 1px solid #334155;
@@ -71,18 +71,17 @@
   font-family: sans-serif;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
   z-index: 99999 !important;
-
-  /* PENTING: Diubah ke 'auto' agar kursor BISA masuk untuk SCROLL isi chat */
-  pointer-events: auto !important; 
+  pointer-events: auto !important; /* AGAR BISA DIMAUSKI & DI-SCROLL */
+  box-sizing: border-box;
 }
 
-/* Tampilkan kotak hitam jika mouse berada di atas teks ATAU di atas kotak hitam itu sendiri */
+/* Tampilkan kotak saat hover ke pesan ATAU ke kotak hitam itu sendiri */
 .pesan-container:hover .pesan-hover-preview,
 .pesan-hover-preview:hover {
   display: block !important;
 }
 
-/* Mencegah kartu memotong box preview */
+/* Biar tidak terpotong kartu */
 .ticket-card, 
 .ticket-card .card-body {
   overflow: visible !important;
@@ -440,17 +439,17 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
               </div>
 
                    <div class="pesan-container mb-3" onmouseenter="fetchPreviewChat('${ticketId}')">
-                      <!-- Teks pesan utama -->
-                      <p class="card-text text-secondary bg-light p-2 rounded mb-0" 
-                         style="white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.81rem;">
-                        ${item.pesan || '-'}
-                      </p>
-                    
-                      <!-- Kotak hitam lokal di dalam kartu -->
-                      <div id="preview-chat-${ticketId}" class="pesan-hover-preview">
-                        <span class="text-muted" style="font-size: 10px;">⏳ Memuat riwayat...</span>
-                      </div>
+                    <!-- 1. Teks pesan utama -->
+                    <p class="card-text text-secondary bg-light p-2 rounded mb-0" 
+                       style="white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.81rem;">
+                      ${item.pesan || '-'}
+                    </p>
+                  
+                    <!-- 2. Kotak lokal melayang yang terkunci di bawah pesan -->
+                    <div id="preview-chat-${ticketId}" class="pesan-hover-preview">
+                      <span class="text-muted" style="font-size: 10px;">⏳ Memuat riwayat...</span>
                     </div>
+                  </div>
               
               <div class="border-top pt-2 mt-auto">
                 <div class="small text-muted mb-2">
@@ -827,97 +826,68 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
 
     // Variable cache penampung pesan sementara
 // Variable cache penampung pesan sementara
+// Variable cache penampung pesan sementara
 const previewChatCache = {};
 
-function handleMouseEnterPreview(event, ticketId) {
-  const globalBox = document.getElementById('globalHoverPreview');
-  if (!globalBox) return;
+async function fetchPreviewChat(ticketId) {
+  const previewBox = document.getElementById(`preview-chat-${ticketId}`);
+  if (!previewBox) return;
 
-  globalBox.style.display = 'block';
-  updatePreviewPosition(event);
-
-  // Jika data sudah pernah di-fetch, gunakan cache
+  // 1. Jika data sudah pernah di-fetch, gunakan cache
   if (previewChatCache[ticketId]) {
-    globalBox.innerHTML = previewChatCache[ticketId];
+    previewBox.innerHTML = previewChatCache[ticketId];
     return;
   }
 
-  // Tampilkan indikator loading awal
-  globalBox.innerHTML = `<span class="text-muted" style="font-size: 10px;">⏳ Memuat riwayat...</span>`;
+  // 2. Set tampilan loading awal
+  previewBox.innerHTML = `<span class="text-muted" style="font-size: 10px;">⏳ Memuat riwayat...</span>`;
 
-  // Fetch data dari API Backend
-  fetch(`/api/get-chats?id_permintaan=${ticketId}`)
-    .then(res => res.json())
-    .then(resData => {
-      const messages = resData.messages || [];
+  try {
+    // 3. Fetch data dari endpoint backend
+    const response = await fetch(`/api/get-chats?id_permintaan=${ticketId}`);
+    const resData = await response.json();
 
-      if (!resData.success || messages.length === 0) {
-        const htmlEmpty = `<div class="text-muted" style="font-size:11px;">Belum ada riwayat percakapan.</div>`;
-        previewChatCache[ticketId] = htmlEmpty;
-        globalBox.innerHTML = htmlEmpty;
-        return;
-      }
+    const messages = resData.messages || [];
 
-      let htmlContent = `
-        <div class="fw-bold text-info border-bottom border-secondary pb-1 mb-2 d-flex justify-content-between" style="font-size: 11px;">
-          <span>💬 Riwayat Chat (${messages.length})</span>
-        </div>
-        <div class="d-flex flex-column gap-2">
-      `;
+    if (!resData.success || messages.length === 0) {
+      const htmlKosong = `<div class="text-muted" style="font-size:11px;">Belum ada riwayat percakapan.</div>`;
+      previewChatCache[ticketId] = htmlKosong;
+      previewBox.innerHTML = htmlKosong;
+      return;
+    }
 
-      messages.forEach(msg => {
-        const isHD = msg.sender_type === 'HD';
-        const pengirim = isHD ? 'Anda (HD)' : (msg.nama_teknisi || msg.username_teknisi || 'Teknisi');
-        
-        htmlContent += `
-          <div style="border-left: 2px solid ${isHD ? '#0d6efd' : '#198754'}; padding-left: 6px;">
-            <div class="${isHD ? 'text-primary' : 'text-success'} fw-bold" style="font-size: 10px;">
-              ${pengirim}
-            </div>
-            <div style="white-space: pre-wrap; word-break: break-word; font-size: 11px;">${msg.pesan || ''}</div>
+    // 4. Susun tampilan isi percakapan
+    let htmlContent = `
+      <div class="fw-bold text-info border-bottom border-secondary pb-1 mb-2 d-flex justify-content-between" style="font-size: 11px;">
+        <span>💬 Riwayat Chat (${messages.length})</span>
+      </div>
+      <div class="d-flex flex-column gap-2">
+    `;
+
+    messages.forEach(msg => {
+      const isHD = msg.sender_type === 'HD';
+      const pengirim = isHD ? 'Anda (HD)' : (msg.nama_teknisi || msg.username_teknisi || 'Teknisi');
+      
+      htmlContent += `
+        <div style="border-left: 2px solid ${isHD ? '#0d6efd' : '#198754'}; padding-left: 6px;">
+          <div class="${isHD ? 'text-primary' : 'text-success'} fw-bold" style="font-size: 10px;">
+            ${pengirim}
           </div>
-        `;
-      });
-
-      htmlContent += `</div>`;
-
-      // Simpan ke cache & render
-      previewChatCache[ticketId] = htmlContent;
-      globalBox.innerHTML = htmlContent;
-    })
-    .catch(err => {
-      console.error(err);
-      globalBox.innerHTML = `<div class="text-danger" style="font-size:10px;">Gagal memuat pesan.</div>`;
+          <div style="white-space: pre-wrap; word-break: break-word; font-size: 11px;">${msg.pesan || ''}</div>
+        </div>
+      `;
     });
-}
 
-function handleMouseLeavePreview() {
-  const globalBox = document.getElementById('globalHoverPreview');
-  if (globalBox) {
-    globalBox.style.display = 'none';
+    htmlContent += `</div>`;
+
+    // 5. Simpan ke cache & render
+    previewChatCache[ticketId] = htmlContent;
+    previewBox.innerHTML = htmlContent;
+
+  } catch (err) {
+    console.error('Error fetch preview chat:', err);
+    previewBox.innerHTML = `<div class="text-danger" style="font-size:10px;">Gagal memuat pesan.</div>`;
   }
-}
-
-function updatePreviewPosition(event) {
-  const globalBox = document.getElementById('globalHoverPreview');
-  if (!globalBox) return;
-
-  // Beri jarak offset 20px dari titik kursor agar kursor tidak menginjak kotak hitam
-  let x = event.clientX + 20;
-  let y = event.clientY + 20;
-
-  // Jika mendekati batas kanan layar, geser kotak ke kiri kursor
-  if (x + 340 > window.innerWidth) {
-    x = event.clientX - 340;
-  }
-
-  // Jika mendekati batas bawah layar, geser kotak ke atas kursor
-  if (y + 270 > window.innerHeight) {
-    y = event.clientY - 270;
-  }
-
-  globalBox.style.left = x + 'px';
-  globalBox.style.top = y + 'px';
 }
     
   </script>

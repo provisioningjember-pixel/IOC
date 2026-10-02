@@ -6,6 +6,15 @@ const db = createClient({
   authToken: process.env.TURSO_AUTH_TOKEN,
 });
 
+
+function escapeHtml(text) {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
@@ -74,7 +83,10 @@ export default async function handler(req, res) {
     }
 
     // Format Pesan
-    const textWithHeader = `${pesan || ''}\n\n💬 (${namaPengirim}):`;
+    //const textWithHeader = `${pesan || ''}\n\n💬 (${namaPengirim}):`;
+	const safePesan = escapeHtml(pesan || '');
+	const safeNamaPengirim = escapeHtml(namaPengirim);
+	const textWithHeader = `${safePesan}\n\n💬 (<b>${safeNamaPengirim}</b>):`;
 
     // 2. Kirim Foto jika ada payload gambar Base64
     if (image_base64 && BOT_TOKEN && targetChatId) {
@@ -88,8 +100,10 @@ export default async function handler(req, res) {
         
         if (parentMessageId) formData.append('reply_to_message_id', parentMessageId);
         if (ticket.thread_id) formData.append('message_thread_id', ticket.thread_id);
-        if (pesan) formData.append('caption', textWithHeader);
-        formData.append('parse_mode', 'Markdown');
+        //if (pesan) formData.append('caption', textWithHeader);
+        //formData.append('parse_mode', 'Markdown');
+	if (pesan) formData.append('caption', textWithHeader);
+	formData.append('parse_mode', 'HTML'); // <--- Diubah ke HTML
 
         const tgPhotoRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
           method: 'POST',
@@ -110,12 +124,23 @@ export default async function handler(req, res) {
     } 
     // 3. Kirim Teks jika tanpa gambar
     else if (BOT_TOKEN && targetChatId && pesan) {
-      const payload = {
-        chat_id: targetChatId,
-        text: textWithHeader,
-        parse_mode: 'Markdown',
-        reply_to_message_id: parentMessageId || undefined
-      };
+      //const payload = {
+        //chat_id: targetChatId,
+        //text: textWithHeader,
+        //parse_mode: 'Markdown',
+        //reply_to_message_id: parentMessageId || undefined
+      //};
+
+	const payload = {
+  	chat_id: targetChatId,
+  	text: textWithHeader,
+  	parse_mode: 'HTML', // <--- Diubah ke HTML
+  	reply_to_message_id: parentMessageId || undefined
+	};
+
+
+
+
       if (ticket.thread_id) payload.message_thread_id = ticket.thread_id;
 
       const tgTextRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {

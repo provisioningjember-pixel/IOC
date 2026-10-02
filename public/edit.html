@@ -43,38 +43,43 @@
     .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1090; }
     .cursor-pointer { cursor: pointer; }
 
-/* Container pesan sebagai acuan posisi popover */
-/* Container pesan sebagai acuan posisi popover */
+/* Container tempat pesan utama & preview */
 .pesan-container {
-  position: relative;
+  position: relative !important;
+  cursor: text;
 }
 
-/* Box preview melayang di atas/bawah teks pesan */
-/* Box preview melayang mengikuti kursor mouse */
+/* Box preview di dalam container */
 .pesan-hover-preview {
   display: none;
-  position: fixed; /* Menggunakan fixed agar posisinya mengikuti koordinat layar */
-  width: 320px;
-  max-height: 250px;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  min-width: 280px; /* Lebar minimal agar tidak terlalu sempit */
+  max-height: 220px;
   overflow-y: auto;
-  background-color: #0f172a; /* Warna dark elegan */
+  background-color: #0f172a; /* Dark theme elegan */
   color: #f8fafc;
   border: 1px solid #334155;
   border-radius: 8px;
-  padding: 12px;
+  padding: 10px;
   font-size: 0.75rem;
   font-family: sans-serif;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-  z-index: 9999; /* Selalu di paling atas layer */
-  pointer-events: none; /* Kursor copy tetap menembus ke teks utama */
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+  z-index: 9999 !important; /* Dipaksa muncul di paling depan */
+  pointer-events: none; /* AGAR TETAP BISA BLOK & COPY TEKS DI <P> */
 }
 
-/* Tampilkan popover HANYA saat mouse berada di dalam area .pesan-container */
+/* KUNCI: Tampilkan preview saat .pesan-container di-hover */
 .pesan-container:hover .pesan-hover-preview {
-  display: block;
+  display: block !important;
 }
 
-
+/* KUNCI: Mencegah kartu memotong box preview yang keluar dari batas kartu */
+.ticket-card, .ticket-card .card-body {
+  overflow: visible !important;
+}
     
   </style>
 </head>
@@ -427,18 +432,18 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
                 </select>
               </div>
 
-              <div class="pesan-container mb-3" onmouseenter="fetchPreviewChat('${ticketId}')">
-                <!-- 1. Teks pesan utama kamu (tetap sama, cuma hilang mb-3 nya) -->
-                <p class="card-text text-secondary bg-light p-2 rounded mb-0" 
-                   style="white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.81rem;">
-                  ${item.pesan || '-'}
-                </p>
-                
-                <!-- 2. Kotak kosong melayang yang siap diisi riwayat chat oleh JS -->
-                <div id="preview-chat-${ticketId}" class="pesan-hover-preview">
-                  <span class="text-muted" style="font-size: 10px;">⏳ Memuat riwayat...</span>
-                </div>
-              </div>
+                      <div class="pesan-container mb-3" onmouseenter="fetchPreviewChat('${ticketId}')">
+                      <!-- 1. Teks pesan utama -->
+                      <p class="card-text text-secondary bg-light p-2 rounded mb-0" 
+                         style="white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.81rem;">
+                        ${item.pesan || '-'}
+                      </p>
+                    
+                      <!-- 2. Kotak kosong melayang yang siap diisi riwayat chat oleh JS -->
+                      <div id="preview-chat-${ticketId}" class="pesan-hover-preview">
+                        <span class="text-muted" style="font-size: 10px;">⏳ Memuat riwayat...</span>
+                      </div>
+                    </div>
               
               <div class="border-top pt-2 mt-auto">
                 <div class="small text-muted mb-2">
@@ -820,31 +825,25 @@ async function fetchPreviewChat(ticketId) {
   const previewBox = document.getElementById(`preview-chat-${ticketId}`);
   if (!previewBox) return;
 
-  // 1. Cek cache
+  // Jika sudah pernah dimuat sebelumnya, gunakan cache
   if (previewChatCache[ticketId]) {
     previewBox.innerHTML = previewChatCache[ticketId];
     return;
   }
 
   try {
-    // 2. Sesuaikan nama endpoint (get-chats atau get-chat tergantung nama file .js kamu)
     const response = await fetch(`/api/get-chats?id_permintaan=${ticketId}`);
     const resData = await response.json();
 
-    if (!resData.success) {
-      throw new Error(resData.error || 'Gagal mengambil data dari server');
-    }
-
     const messages = resData.messages || [];
 
-    if (messages.length === 0) {
+    if (!resData.success || messages.length === 0) {
       const htmlKosong = `<div class="text-muted" style="font-size:11px;">Belum ada riwayat percakapan.</div>`;
       previewChatCache[ticketId] = htmlKosong;
       previewBox.innerHTML = htmlKosong;
       return;
     }
 
-    // 3. Susun Tampilan Riwayat Pesan
     let htmlContent = `
       <div class="fw-bold text-info border-bottom border-secondary pb-1 mb-2 d-flex justify-content-between" style="font-size: 11px;">
         <span>💬 Riwayat Chat (${messages.length})</span>
@@ -877,7 +876,43 @@ async function fetchPreviewChat(ticketId) {
   }
 }
 
+function handleMouseMove(event) {
+  updatePreviewPosition(event);
+}
+
+function handleMouseLeave() {
+  const globalBox = document.getElementById('globalHoverPreview');
+  if (globalBox) {
+    globalBox.style.display = 'none';
+  }
+}
+
+function updatePreviewPosition(event) {
+  const globalBox = document.getElementById('globalHoverPreview');
+  if (!globalBox) return;
+
+  let x = event.clientX + 15;
+  let y = event.clientY + 15;
+
+  // Batas kanan layar
+  if (x + 330 > window.innerWidth) {
+    x = event.clientX - 335;
+  }
+
+  // Batas bawah layar
+  if (y + 260 > window.innerHeight) {
+    y = event.clientY - 260;
+  }
+
+  globalBox.style.left = x + 'px';
+  globalBox.style.top = y + 'px';
+}
+
     
   </script>
+
+  <div id="globalHoverPreview" class="pesan-hover-preview">
+  <span class="text-muted" style="font-size: 10px;">⏳ Memuat riwayat...</span>
+</div>
 </body>
 </html>

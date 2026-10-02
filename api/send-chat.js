@@ -74,7 +74,7 @@ export default async function handler(req, res) {
     }
 
     // Format Pesan
-    const textWithHeader = `${pesan || ''}\n\n💬 *Balasan HD (${namaPengirim}):*`;
+    const textWithHeader = `${pesan || ''}\n\n💬 (${namaPengirim}):`;
 
     // 2. Kirim Foto jika ada payload gambar Base64
     if (image_base64 && BOT_TOKEN && targetChatId) {

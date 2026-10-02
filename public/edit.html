@@ -42,6 +42,42 @@
     .preview-img { max-width: 120px; max-height: 120px; border-radius: 8px; object-fit: cover; }
     .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1090; }
     .cursor-pointer { cursor: pointer; }
+
+/* Container pesan sebagai acuan posisi popover */
+.pesan-container {
+  position: relative;
+}
+
+/* Box preview melayang di bawah teks pesan */
+.pesan-hover-preview {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  background-color: #1e293b; /* Warna gelap agar kontras */
+  color: #f1f5f9;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 0.75rem;
+  font-family: sans-serif;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  z-index: 999;
+  
+  /* PENTING: Biar klik/drag tetep nembus ke teks <p> saat mau copy */
+  pointer-events: none; 
+}
+
+/* Tampilkan popover otomatis saat cursor diarahkan ke .pesan-container */
+.pesan-container:hover .pesan-hover-preview {
+  display: block;
+}
+
+
+
+    
   </style>
 </head>
 <body>
@@ -393,7 +429,18 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
                 </select>
               </div>
 
-              <p class="card-text text-secondary mb-3 bg-light p-2 rounded" style="white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.81rem;">${item.pesan || '-'}</p>
+              <div class="pesan-container mb-3" onmouseenter="fetchPreviewChat('${ticketId}')">
+                <!-- 1. Teks pesan utama kamu (tetap sama, cuma hilang mb-3 nya) -->
+                <p class="card-text text-secondary bg-light p-2 rounded mb-0" 
+                   style="white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.81rem;">
+                  ${item.pesan || '-'}
+                </p>
+                
+                <!-- 2. Kotak kosong melayang yang siap diisi riwayat chat oleh JS -->
+                <div id="preview-chat-${ticketId}" class="pesan-hover-preview">
+                  <span class="text-muted" style="font-size: 10px;">⏳ Memuat riwayat...</span>
+                </div>
+              </div>
               
               <div class="border-top pt-2 mt-auto">
                 <div class="small text-muted mb-2">
@@ -767,6 +814,70 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
         alert('Kesalahan koneksi saat menutup tiket.');
       }
     }
+
+    // Variable cache penampung pesan sementara
+const previewChatCache = {};
+
+async function fetchPreviewChat(ticketId) {
+  const previewBox = document.getElementById(`preview-chat-${ticketId}`);
+  if (!previewBox) return;
+
+  // 1. Cek apakah tiket ini sudah pernah di-fetch sebelumnya
+  if (previewChatCache[ticketId]) {
+    previewBox.innerHTML = previewChatCache[ticketId];
+    return;
+  }
+
+  try {
+    // 2. Sesuaikan endpoint URL ini dengan API / Apps Script backend milikmu
+    const response = await fetch(`/api/get-chat?tiket_id=${ticketId}`);
+    const resData = await response.json();
+
+    const messages = resData.data || resData.messages || [];
+
+    // Jika belum ada pesan/balasan di database
+    if (messages.length === 0) {
+      const htmlKosong = `<div class="text-muted" style="font-size:11px;">Belum ada riwayat pesan.</div>`;
+      previewChatCache[ticketId] = htmlKosong;
+      previewBox.innerHTML = htmlKosong;
+      return;
+    }
+
+    // 3. Susun isi riwayat pesan melayang
+    let htmlContent = `
+      <div class="fw-bold text-info border-bottom border-secondary pb-1 mb-2 d-flex justify-content-between" style="font-size: 11px;">
+        <span>💬 Riwayat Chat (${messages.length})</span>
+      </div>
+      <div class="d-flex flex-column gap-2">
+    `;
+
+    messages.forEach(msg => {
+      const isHD = msg.sender_type === 'HD';
+      const pengirim = isHD ? 'HD' : (msg.nama_teknisi || 'Teknisi');
+      
+      htmlContent += `
+        <div style="border-left: 2px solid ${isHD ? '#0d6efd' : '#198754'}; padding-left: 6px;">
+          <div class="${isHD ? 'text-primary' : 'text-success'} fw-bold" style="font-size: 10px;">
+            ${pengirim}
+          </div>
+          <div style="white-space: pre-wrap; word-break: break-word; font-size: 11px;">${msg.pesan || ''}</div>
+        </div>
+      `;
+    });
+
+    htmlContent += `</div>`;
+
+    // 4. Simpan ke cache & render ke UI
+    previewChatCache[ticketId] = htmlContent;
+    previewBox.innerHTML = htmlContent;
+
+  } catch (err) {
+    console.error('Error fetch preview chat:', err);
+    previewBox.innerHTML = `<div class="text-danger" style="font-size:10px;">Gagal memuat pesan.</div>`;
+  }
+}
+
+    
   </script>
 </body>
 </html>

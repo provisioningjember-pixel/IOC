@@ -55,7 +55,7 @@
   width: 320px;
   max-height: 250px;
   overflow-y: auto;
-  background-color: #0f172a; /* Dark theme yang kontras & jelas */
+  background-color: #0f172a;
   color: #f8fafc;
   border: 1px solid #334155;
   border-radius: 8px;
@@ -63,8 +63,10 @@
   font-size: 0.75rem;
   font-family: sans-serif;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-  z-index: 99999 !important; /* Dipastikan melayang di atas semua elemen */
-  pointer-events: none; /* KUNCI COPY TEKS: Kursor seleksi tetap menembus ke <p> */
+  z-index: 99999 !important;
+
+  /* PENTING: Mencegah kursor mendeteksi kotak hitam sebagai penghalang */
+  pointer-events: none !important; 
 }
     
   </style>
@@ -879,24 +881,23 @@ function updatePreviewPosition(event) {
   const globalBox = document.getElementById('globalHoverPreview');
   if (!globalBox) return;
 
-  // Beri jarak 15px di kanan dan bawah kursor mouse
-  let x = event.clientX + 15;
-  let y = event.clientY + 15;
+  // Beri jarak offset 20px dari titik kursor agar kursor tidak menginjak kotak hitam
+  let x = event.clientX + 20;
+  let y = event.clientY + 20;
 
-  // Batas kanan layar agar tidak terpotong
-  if (x + 330 > window.innerWidth) {
-    x = event.clientX - 335;
+  // Jika mendekati batas kanan layar, geser kotak ke kiri kursor
+  if (x + 340 > window.innerWidth) {
+    x = event.clientX - 340;
   }
 
-  // Batas bawah layar agar tidak terpotong
-  if (y + 260 > window.innerHeight) {
-    y = event.clientY - 260;
+  // Jika mendekati batas bawah layar, geser kotak ke atas kursor
+  if (y + 270 > window.innerHeight) {
+    y = event.clientY - 270;
   }
 
   globalBox.style.left = x + 'px';
   globalBox.style.top = y + 'px';
 }
-
     
   </script>
 

@@ -134,19 +134,27 @@
 
           <!-- Form Kirim Pesan -->
           <form id="chatForm" onsubmit="sendChatMessage(event)">
-            <div class="input-group">
-              <input type="text" id="chatInput" class="form-control" placeholder="Tulis balasan atau paste gambar (Ctrl+V)..." autocomplete="off" />
-              <label class="btn btn-outline-secondary" for="fileInput" title="Lampirkan Gambar">
-                📎
-              </label>
-              <input type="file" id="fileInput" accept="image/*" class="d-none" onchange="handleFileSelect(event)" />
-              
-              <button class="btn btn-primary d-flex align-items-center gap-2" type="submit" id="btnSendChat">
-                <span id="btnSendText">Kirim Pesan</span>
-                <span id="btnSendLoading" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-              </button>
-            </div>
-          </form>
+              <div class="input-group">
+                <!-- Mengubah input ke textarea -->
+                <textarea 
+                  id="chatInput" 
+                  class="form-control" 
+                  placeholder="Tulis balasan... (Shift+Enter untuk baris baru, Enter untuk kirim)" 
+                  rows="1" 
+                  style="resize: none; max-height: 120px;"
+                  onkeydown="handleChatKeyDown(event)"></textarea>
+                
+                <label class="btn btn-outline-secondary d-flex align-items-center" for="fileInput" title="Lampirkan Gambar">
+                  📎
+                </label>
+                <input type="file" id="fileInput" accept="image/*" class="d-none" onchange="handleFileSelect(event)" />
+                
+                <button class="btn btn-primary d-flex align-items-center gap-2" type="submit" id="btnSendChat">
+                  <span id="btnSendText">Kirim Pesan</span>
+                  <span id="btnSendLoading" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                </button>
+              </div>
+            </form>
         </div>
         <div class="modal-footer d-flex justify-content-between">
           <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
@@ -705,6 +713,29 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
       document.getElementById('imagePreview').src = '';
       document.getElementById('imagePreviewContainer').classList.add('d-none');
     }
+
+      const chatInput = document.getElementById('chatInput');
+      
+      if (chatInput) {
+        chatInput.addEventListener('input', function () {
+          this.style.height = 'auto';
+          this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+      }
+      
+          function handleChatKeyDown(event) {
+        // Jika tombol Enter ditekan TANPA Shift
+        if (event.key === 'Enter' && !event.shiftKey) {
+          event.preventDefault(); // Mencegah buat baris baru (enter kebawah)
+          
+          // Jalankan fungsi kirim pesan yang dipanggil oleh form
+          const chatForm = document.getElementById('chatForm');
+          if (chatForm) {
+            chatForm.requestSubmit(); // Memicu event onsubmit="sendChatMessage(event)"
+          }
+        }
+        // Jika Shift + Enter ditekan, browser akan otomatis membuat baris baru (kebawah)
+      }
 
     async function tandaiClose(item) {
       if (!item.kategori_pekerjaan || item.kategori_pekerjaan.trim() === '') {

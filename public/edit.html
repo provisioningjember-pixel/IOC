@@ -42,17 +42,6 @@
     .preview-img { max-width: 120px; max-height: 120px; border-radius: 8px; object-fit: cover; }
     .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1090; }
     .cursor-pointer { cursor: pointer; }
-
-/* Style Teks Format Telegram (Monospace & Break Line) */
-    .telegram-format {
-      white-space: pre-wrap;
-      word-break: break-word;
-      font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: 0.81rem;
-      line-height: 1.4;
-    }
-
-    
   </style>
 </head>
 <body>
@@ -404,9 +393,7 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
                 </select>
               </div>
 
-              <!-- Menambahkan class telegram-format agar teks terformat rapi & nge-enter -->
-              <p class="card-text text-secondary mb-3 bg-light p-2 rounded telegram-format">${item.pesan || '-'}</p>
-              
+              <p class="card-text text-secondary mb-3 bg-light p-2 rounded" style="white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.81rem;">${item.pesan || '-'}</p>
               
               <div class="border-top pt-2 mt-auto">
                 <div class="small text-muted mb-2">
@@ -602,8 +589,7 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
         <div class="p-2 px-3 ${isHD ? 'chat-bubble-hd' : 'chat-bubble-teknisi'} shadow-sm" style="max-width: 85%;">
           <small class="fw-bold d-block mb-1" style="font-size: 11px;">${pengirimNama}</small>
           ${imagesGroupHtml}
-         
-          ${msg.pesan ? `<div class="mb-0 telegram-format">${msg.pesan}</div>` : ''}
+          ${msg.pesan ? `<p class="mb-0 small" style="white-space: pre-wrap;">${msg.pesan}</p>` : ''}
         </div>
         <small class="text-muted" style="font-size: 9px; margin-top: 2px;">
           ${formattedTime}

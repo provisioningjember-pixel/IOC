@@ -438,18 +438,18 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
                 </select>
               </div>
 
-                   <div class="pesan-container mb-3" onmouseenter="fetchPreviewChat('${ticketId}')">
-                    <!-- 1. Teks pesan utama -->
-                    <p class="card-text text-secondary bg-light p-2 rounded mb-0" 
-                       style="white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.81rem;">
-                      ${item.pesan || '-'}
-                    </p>
-                  
-                    <!-- 2. Kotak lokal melayang yang terkunci di bawah pesan -->
-                    <div id="preview-chat-${ticketId}" class="pesan-hover-preview">
-                      <span class="text-muted" style="font-size: 10px;">⏳ Memuat riwayat...</span>
+                   <div class="pesan-container mb-3" onmouseenter="fetchPreviewChat('${item.id_permintaan || item.tiket_id}')">
+                      <!-- Teks Pesan Utama -->
+                      <p class="card-text text-secondary bg-light p-2 rounded mb-0" 
+                         style="white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.81rem;">
+                        ${item.pesan || '-'}
+                      </p>
+                    
+                      <!-- Box Preview Lokal -->
+                      <div id="preview-chat-${item.id_permintaan || item.tiket_id}" class="pesan-hover-preview">
+                        <span class="text-light" style="font-size: 10px;">⏳ Memuat riwayat...</span>
+                      </div>
                     </div>
-                  </div>
               
               <div class="border-top pt-2 mt-auto">
                 <div class="small text-muted mb-2">
@@ -830,33 +830,36 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
 const previewChatCache = {};
 
 async function fetchPreviewChat(ticketId) {
+  if (!ticketId) {
+    console.warn('ID Tiket tidak ditemukan!');
+    return;
+  }
+
   const previewBox = document.getElementById(`preview-chat-${ticketId}`);
   if (!previewBox) return;
 
-  // 1. Jika data sudah pernah di-fetch, gunakan cache
+  // Jika sudah ada di cache, langsung pakai
   if (previewChatCache[ticketId]) {
     previewBox.innerHTML = previewChatCache[ticketId];
     return;
   }
 
-  // 2. Set tampilan loading awal
-  previewBox.innerHTML = `<span class="text-muted" style="font-size: 10px;">⏳ Memuat riwayat...</span>`;
+  // Teks loading diperjelas warnanya
+  previewBox.innerHTML = `<span class="text-light" style="font-size: 11px;">⏳ Memuat riwayat...</span>`;
 
   try {
-    // 3. Fetch data dari endpoint backend
     const response = await fetch(`/api/get-chats?id_permintaan=${ticketId}`);
     const resData = await response.json();
 
     const messages = resData.messages || [];
 
     if (!resData.success || messages.length === 0) {
-      const htmlKosong = `<div class="text-muted" style="font-size:11px;">Belum ada riwayat percakapan.</div>`;
+      const htmlKosong = `<div class="text-warning" style="font-size:11px;">Belum ada riwayat percakapan.</div>`;
       previewChatCache[ticketId] = htmlKosong;
       previewBox.innerHTML = htmlKosong;
       return;
     }
 
-    // 4. Susun tampilan isi percakapan
     let htmlContent = `
       <div class="fw-bold text-info border-bottom border-secondary pb-1 mb-2 d-flex justify-content-between" style="font-size: 11px;">
         <span>💬 Riwayat Chat (${messages.length})</span>
@@ -873,20 +876,19 @@ async function fetchPreviewChat(ticketId) {
           <div class="${isHD ? 'text-primary' : 'text-success'} fw-bold" style="font-size: 10px;">
             ${pengirim}
           </div>
-          <div style="white-space: pre-wrap; word-break: break-word; font-size: 11px;">${msg.pesan || ''}</div>
+          <div class="text-light" style="white-space: pre-wrap; word-break: break-word; font-size: 11px;">${msg.pesan || ''}</div>
         </div>
       `;
     });
 
     htmlContent += `</div>`;
 
-    // 5. Simpan ke cache & render
     previewChatCache[ticketId] = htmlContent;
     previewBox.innerHTML = htmlContent;
 
   } catch (err) {
     console.error('Error fetch preview chat:', err);
-    previewBox.innerHTML = `<div class="text-danger" style="font-size:10px;">Gagal memuat pesan.</div>`;
+    previewBox.innerHTML = `<div class="text-danger fw-bold" style="font-size:10px;">Gagal memuat pesan.</div>`;
   }
 }
     

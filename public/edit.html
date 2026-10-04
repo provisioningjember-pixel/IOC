@@ -506,19 +506,22 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
     const checkData = await checkRes.json();
 
     if (checkData.success && checkData.id_telegram_hd) {
-      // Jika tiket SUDAH diisi id_telegram_hd dan BUKAN kamu yang pegang
-      if (checkData.id_telegram_hd !== currentUser.id_telegram) {
+      const hdDiDatabase = String(checkData.id_telegram_hd);
+      const hdSaatIni = String(currentUser.id_telegram);
+
+      // Notifikasi HANYA muncul jika HD sebelumnya BEDA dengan HD yang sedang login
+      if (hdDiDatabase !== hdSaatIni) {
         const namaHd = checkData.nama_hd || `HD (ID: ${checkData.id_telegram_hd})`;
         
         const yakin = confirm(`Yakin kamu akan lanjut ambil tiket ini yang sebelumnya diambil oleh ${namaHd}?`);
         
         if (!yakin) {
-          return; // Jika pengguna klik "Batal", hentikan proses
+          return; // Batal ambil jika pengguna memilih Cancel
         }
       }
     }
 
-    // 2. Jika ID HD kosong ATAU pengguna setuju menimpa (klik "OK" pada konfirmasi)
+    // 2. Lanjutkan update status (jika HD kosong, HD sama, atau pengguna sudah klik OK)
     const res = await fetch('/api/update-status', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

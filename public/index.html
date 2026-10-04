@@ -500,28 +500,49 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
     }
 
     async function prosesDanAmbilTiket(item) {
-      try {
-        const res = await fetch('/api/update-status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id_permintaan: item.id_permintaan,
-            status_baru: 'dikerjakan',
-            id_telegram_hd: currentUser.id_telegram
-          })
-        });
+  try {
+    // 1. Cek pemegang tiket saat ini di database
+    const checkRes = await fetch(`/api/get-ticket-owner?id_permintaan=${encodeURIComponent(item.id_permintaan)}`);
+    const checkData = await checkRes.json();
 
-        const result = await res.json();
-        if (result.success) {
-          bukaRuangChat(item);
-          loadTickets();
-        } else {
-          alert('Gagal mengambil tiket: ' + result.error);
+    if (checkData.success && checkData.id_telegram_hd) {
+      const hdDiDatabase = String(checkData.id_telegram_hd);
+      const hdSaatIni = String(currentUser.id_telegram);
+
+      // Notifikasi HANYA muncul jika HD sebelumnya BEDA dengan HD yang sedang login
+      if (hdDiDatabase !== hdSaatIni) {
+        const namaHd = checkData.nama_hd || `HD (ID: ${checkData.id_telegram_hd})`;
+        
+        const yakin = confirm(`Yakin kamu akan lanjut ambil tiket ini yang sebelumnya diambil oleh ${namaHd}?`);
+        
+        if (!yakin) {
+          return; // Batal ambil jika pengguna memilih Cancel
         }
-      } catch (err) {
-        alert('Terjadi kesalahan koneksi');
       }
     }
+
+    // 2. Lanjutkan update status (jika HD kosong, HD sama, atau pengguna sudah klik OK)
+    const res = await fetch('/api/update-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id_permintaan: item.id_permintaan,
+        status_baru: 'dikerjakan',
+        id_telegram_hd: currentUser.id_telegram
+      })
+    });
+
+    const result = await res.json();
+    if (result.success) {
+      bukaRuangChat(item);
+      loadTickets();
+    } else {
+      alert('Gagal mengambil tiket: ' + result.error);
+    }
+  } catch (err) {
+    alert('Terjadi kesalahan koneksi');
+  }
+}
 
     function bukaRuangChat(item) {
           activeTicket = item;

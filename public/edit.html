@@ -500,28 +500,46 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
     }
 
     async function prosesDanAmbilTiket(item) {
-      try {
-        const res = await fetch('/api/update-status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id_permintaan: item.id_permintaan,
-            status_baru: 'dikerjakan',
-            id_telegram_hd: currentUser.id_telegram
-          })
-        });
+  try {
+    // 1. Cek pemegang tiket saat ini di database
+    const checkRes = await fetch(`/api/get-ticket-owner?id_permintaan=${encodeURIComponent(item.id_permintaan)}`);
+    const checkData = await checkRes.json();
 
-        const result = await res.json();
-        if (result.success) {
-          bukaRuangChat(item);
-          loadTickets();
-        } else {
-          alert('Gagal mengambil tiket: ' + result.error);
+    if (checkData.success && checkData.id_telegram_hd) {
+      // Jika tiket SUDAH diisi id_telegram_hd dan BUKAN kamu yang pegang
+      if (checkData.id_telegram_hd !== currentUser.id_telegram) {
+        const namaHd = checkData.nama_hd || `HD (ID: ${checkData.id_telegram_hd})`;
+        
+        const yakin = confirm(`Yakin kamu akan lanjut ambil tiket ini yang sebelumnya diambil oleh ${namaHd}?`);
+        
+        if (!yakin) {
+          return; // Jika pengguna klik "Batal", hentikan proses
         }
-      } catch (err) {
-        alert('Terjadi kesalahan koneksi');
       }
     }
+
+    // 2. Jika ID HD kosong ATAU pengguna setuju menimpa (klik "OK" pada konfirmasi)
+    const res = await fetch('/api/update-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id_permintaan: item.id_permintaan,
+        status_baru: 'dikerjakan',
+        id_telegram_hd: currentUser.id_telegram
+      })
+    });
+
+    const result = await res.json();
+    if (result.success) {
+      bukaRuangChat(item);
+      loadTickets();
+    } else {
+      alert('Gagal mengambil tiket: ' + result.error);
+    }
+  } catch (err) {
+    alert('Terjadi kesalahan koneksi');
+  }
+}
 
     function bukaRuangChat(item) {
           activeTicket = item;

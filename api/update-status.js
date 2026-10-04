@@ -18,7 +18,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, error: 'id_permintaan dan status_baru wajib diisi' });
     }
 
-    // 1. Ambil tiket_id induk terlebih dahulu agar semua pesan terkait ikut ter-update
+    // 1. Ambil tiket_id induk
     const ticketRes = await db.execute({
       sql: `SELECT tiket_id FROM permintaan WHERE id_permintaan = ? OR tiket_id = ? LIMIT 1`,
       args: [id_permintaan, id_permintaan]
@@ -30,11 +30,11 @@ export default async function handler(req, res) {
     let query = '';
     let args = [];
 
-    // 2. Tentukan query UPDATE berdasarkan status baru
+    // 2. Tentukan query UPDATE (id_telegram_hd langsung diupdate dengan ID HD baru)
     if (status_baru === 'taken' || status_baru === 'dikerjakan') {
       query = `UPDATE permintaan 
                SET status = ?, 
-                   id_telegram_hd = COALESCE(id_telegram_hd, ?), 
+                   id_telegram_hd = ?, 
                    keterangan = COALESCE(?, keterangan), 
                    timestamp_taken = COALESCE(timestamp_taken, ?) 
                WHERE id_permintaan = ? OR tiket_id = ?`;
@@ -49,7 +49,7 @@ export default async function handler(req, res) {
     } else if (status_baru === 'close' || status_baru === 'closed') {
       query = `UPDATE permintaan 
                SET status = ?, 
-                   id_telegram_hd = COALESCE(id_telegram_hd, ?), 
+                   id_telegram_hd = COALESCE(?, id_telegram_hd), 
                    keterangan = COALESCE(?, keterangan), 
                    timestamp_close = COALESCE(timestamp_close, ?) 
                WHERE id_permintaan = ? OR tiket_id = ?`;
@@ -64,7 +64,7 @@ export default async function handler(req, res) {
     } else {
       query = `UPDATE permintaan 
                SET status = ?, 
-                   id_telegram_hd = COALESCE(id_telegram_hd, ?), 
+                   id_telegram_hd = COALESCE(?, id_telegram_hd), 
                    keterangan = COALESCE(?, keterangan) 
                WHERE id_permintaan = ? OR tiket_id = ?`;
       args = [

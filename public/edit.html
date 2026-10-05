@@ -101,6 +101,29 @@
         </li>
       </ul>
 
+          <!-- FILTER RANGE TANGGAL (TARUH DI SINI) -->
+            <div id="filterDateContainer" class="d-none bg-white p-3 rounded border mb-3 shadow-sm">
+              <div class="row g-2 align-items-center">
+                <div class="col-auto">
+                  <label class="col-form-label col-form-label-sm fw-bold">Dari Tanggal:</label>
+                </div>
+                <div class="col-auto">
+                  <input type="date" id="startDate" class="form-control form-control-sm" />
+                </div>
+                <div class="col-auto">
+                  <label class="col-form-label col-form-label-sm fw-bold">Sampai Tanggal:</label>
+                </div>
+                <div class="col-auto">
+                  <input type="date" id="endDate" class="form-control form-control-sm" />
+                </div>
+                <div class="col-auto">
+                  <button onclick="applyDateFilter()" class="btn btn-primary btn-sm">🔍 Filter</button>
+                  <button onclick="resetDateFilter()" class="btn btn-outline-secondary btn-sm">🔄 Hari Ini</button>
+                </div>
+              </div>
+            </div>
+
+      
       <!-- Container Daftar Tiket -->
       <div id="ticketContainer" class="row g-3"></div>
     </div>
@@ -355,26 +378,63 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
       showLogin();
     }
 
+    // Helper untuk mendapatkan format YYYY-MM-DD hari ini
+    function getTodayString() {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    
+    // PERLAKUAN BEDA DI SWITCH TAB
     function switchTab(status, element) {
       document.querySelectorAll('#ticketTabs .nav-link').forEach(el => el.classList.remove('active'));
       element.classList.add('active');
       currentStatus = status;
+    
+      const filterContainer = document.getElementById('filterDateContainer');
+    
+      if (status === 'close') {
+        // Tampilkan Filter Tanggal khusus Tab Close
+        filterContainer.classList.remove('d-none');
+        
+        // Set default ke tanggal HARI INI jika input masih kosong
+        if (!document.getElementById('startDate').value) {
+          document.getElementById('startDate').value = getTodayString();
+          document.getElementById('endDate').value = getTodayString();
+        }
+      } else {
+        // Sembunyikan Filter Tanggal untuk tab Open & Dikerjakan
+        filterContainer.classList.add('d-none');
+      }
+    
       loadTickets();
     }
-
+    
     async function loadTickets(isSilent = false) {
       const container = document.getElementById('ticketContainer');
       if (!isSilent && container.children.length === 0) {
         container.innerHTML = `<div class="text-center p-5 text-muted">Memuat data tiket...</div>`;
       }
-
+    
       try {
         const segmen = currentUser.segmen || 'B2C';
         const idTelegram = currentUser.id_telegram || '';
-
-        const res = await fetch(`/api/tickets?segmen=${segmen}&status=${currentStatus}&id_telegram_hd=${idTelegram}`);
+    
+        // URL dasar
+        let url = `/api/tickets?segmen=${segmen}&status=${currentStatus}&id_telegram_hd=${idTelegram}`;
+    
+        // Jika tab close aktif, kirimkan parameter range tanggal ke API
+        if (currentStatus === 'close') {
+          const startDate = document.getElementById('startDate').value || getTodayString();
+          const endDate = document.getElementById('endDate').value || getTodayString();
+          url += `&start_date=${startDate}&end_date=${endDate}`;
+        }
+    
+        const res = await fetch(url);
         const result = await res.json();
-
+    
         if (result.success) {
           renderTickets(result.data);
           updateBadgeCounts(result.counts);
@@ -387,6 +447,17 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
         }
       }
     }
+    
+    // Fungsi Trigger Filter
+    function applyDateFilter() {
+      loadTickets();
+    }
+    
+    function resetDateFilter() {
+      document.getElementById('startDate').value = getTodayString();
+      document.getElementById('endDate').value = getTodayString();
+      loadTickets();
+    }
 
     function updateBadgeCounts(counts) {
       if (counts) {
@@ -396,79 +467,130 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
     }
 
     function renderTickets(tickets) {
-      const container = document.getElementById('ticketContainer');
-
-      if (!tickets || tickets.length === 0) {
-        container.innerHTML = `
-          <div class="col-12 text-center p-5 text-muted bg-white rounded border">
-            Tidak ada tiket di kategori ini untuk segmen <strong>${currentUser.segmen || 'B2C'}</strong>.
-          </div>`;
-        return;
-      }
-
-      container.innerHTML = tickets.map(item => {
-        const currentKat = (item.kategori_pekerjaan || '').trim().toLowerCase();
-
-        const optionsKategori = listKategoriSegmen.map(kat => {
-          const isSelected = kat.toLowerCase() === currentKat ? 'selected' : '';
-          return `<option value="${kat}" ${isSelected}>${kat}</option>`;
-        }).join('');
-
-        const jsonItem = JSON.stringify(item).replace(/"/g, '&quot;');
-        const ticketId = item.id_permintaan || item.tiket_id;
-
-        return `
-        <div class="col-md-6 col-lg-4">
-          <div class="card shadow-sm border-0 ticket-card h-100">
-            <div class="card-body d-flex flex-column">
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="badge bg-primary">ID: ${item.tiket_id || item.id_permintaan}</span>
-                <small class="text-muted" style="font-size:11px;">${item.timestamp_created || ''}</small>
-              </div>
-
-              <div class="mb-2">
-                <label class="form-label small text-muted mb-1 fw-semibold">1. Segmen Pekerjaan:</label>
-                <select class="form-select form-select-sm" 
-                  ${currentStatus === 'dikerjakan' || currentStatus === 'taken' ? '' : 'disabled'}
-                  onchange="updateKategoriPekerjaan('${ticketId}', this.value)">
-                  <option value="">-- Pilih Segmen --</option>
-                  ${optionsKategori}
-                </select>
-              </div>
-
-              <p class="card-text text-secondary mb-3 bg-light p-2 rounded" style="white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.81rem;">${item.pesan || '-'}</p>
-              
-              <div class="border-top pt-2 mt-auto">
-                <div class="small text-muted mb-2">
-                  👤 Teknisi: <strong>${item.nama_teknisi || item.username_teknisi || '-'}</strong>
-                </div>
-                
-                ${currentStatus === 'open' ? `
-                  <button onclick="prosesDanAmbilTiket(${jsonItem})" class="btn btn-warning btn-sm w-100 fw-bold">
-                    ⚡ Ambil / Balas Tiket
+        const container = document.getElementById('ticketContainer');
+      
+        if (!tickets || tickets.length === 0) {
+          container.innerHTML = `
+            <div class="col-12 text-center p-5 text-muted bg-white rounded border">
+              Tidak ada tiket di kategori ini untuk segmen <strong>${currentUser.segmen || 'B2C'}</strong>.
+            </div>`;
+          return;
+        }
+      
+        // ==========================================
+        // PERLAKUAN KHUSUS: TAB CLOSE (BENTUK TABEL)
+        // ==========================================
+        if (currentStatus === 'close') {
+          const rows = tickets.map((item, index) => {
+            const jsonItem = JSON.stringify(item).replace(/"/g, '&quot;');
+            return `
+              <tr>
+                <td class="text-center fw-bold text-secondary">${index + 1}</td>
+                <td><span class="badge bg-primary">#${item.tiket_id || item.id_permintaan}</span></td>
+                <td><small class="text-muted">${item.timestamp_created || '-'}</small></td>
+                <td><span class="badge bg-info text-dark">${item.kategori_pekerjaan || '-'}</span></td>
+                <td><small class="fw-semibold">${item.nama_teknisi || item.username_teknisi || '-'}</small></td>
+                <td style="max-width: 280px; white-space: pre-wrap; font-size: 0.8rem;" class="text-secondary">${item.pesan || '-'}</td>
+                <td class="text-center">
+                  <button onclick="bukaRuangChat(${jsonItem})" class="btn btn-sm btn-outline-primary">
+                    💬 Riwayat Chat
                   </button>
-                ` : ''}
-
-                ${currentStatus === 'dikerjakan' || currentStatus === 'taken' ? `
-                  <div class="d-flex gap-2">
-                    <button onclick="bukaRuangChat(${jsonItem})" class="btn btn-primary btn-sm flex-fill">
-                      2. 💬 Balas
-                    </button>
-                    <button onclick="tandaiClose(${jsonItem})" class="btn btn-success btn-sm flex-fill">
-                      3. ✅ Tandai Close
-                    </button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+      
+          container.innerHTML = `
+            <div class="col-12">
+              <div class="card shadow-sm border-0">
+                <div class="card-body p-0">
+                  <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+                      <thead class="table-light">
+                        <tr>
+                          <th class="text-center" style="width: 50px;">No</th>
+                          <th>ID Tiket</th>
+                          <th>Waktu Masuk</th>
+                          <th>Segmen Pekerjaan</th>
+                          <th>Teknisi</th>
+                          <th>Pesan / Permintaan</th>
+                          <th class="text-center">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${rows}
+                      </tbody>
+                    </table>
                   </div>
-                ` : ''}
-
-                ${currentStatus === 'close' ? `
-                  <div class="badge bg-secondary w-100 py-2">Tiket Selesai (Closed)</div>
-                ` : ''}
+                </div>
+              </div>
+            </div>
+          `;
+          return; // Stop di sini untuk tab close
+        }
+      
+        // ==========================================
+        // TAB OPEN & DIKERJAKAN (BENTUK CARD BISA DIPILIH)
+        // ==========================================
+        container.innerHTML = tickets.map(item => {
+          const currentKat = (item.kategori_pekerjaan || '').trim().toLowerCase();
+      
+          const optionsKategori = listKategoriSegmen.map(kat => {
+            const isSelected = kat.toLowerCase() === currentKat ? 'selected' : '';
+            return `<option value="${kat}" ${isSelected}>${kat}</option>`;
+          }).join('');
+      
+          const jsonItem = JSON.stringify(item).replace(/"/g, '&quot;');
+          const ticketId = item.id_permintaan || item.tiket_id;
+      
+          return `
+          <div class="col-md-6 col-lg-4">
+            <div class="card shadow-sm border-0 ticket-card h-100">
+              <div class="card-body d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="badge bg-primary">ID: ${item.tiket_id || item.id_permintaan}</span>
+                  <small class="text-muted" style="font-size:11px;">${item.timestamp_created || ''}</small>
+                </div>
+      
+                <div class="mb-2">
+                  <label class="form-label small text-muted mb-1 fw-semibold">1. Segmen Pekerjaan:</label>
+                  <select class="form-select form-select-sm" 
+                    ${currentStatus === 'dikerjakan' || currentStatus === 'taken' ? '' : 'disabled'}
+                    onchange="updateKategoriPekerjaan('${ticketId}', this.value)">
+                    <option value="">-- Pilih Segmen --</option>
+                    ${optionsKategori}
+                  </select>
+                </div>
+      
+                <p class="card-text text-secondary mb-3 bg-light p-2 rounded" style="white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.81rem;">${item.pesan || '-'}</p>
+                
+                <div class="border-top pt-2 mt-auto">
+                  <div class="small text-muted mb-2">
+                    👤 Teknisi: <strong>${item.nama_teknisi || item.username_teknisi || '-'}</strong>
+                  </div>
+                  
+                  ${currentStatus === 'open' ? `
+                    <button onclick="prosesDanAmbilTiket(${jsonItem})" class="btn btn-warning btn-sm w-100 fw-bold">
+                      ⚡ Ambil / Balas Tiket
+                    </button>
+                  ` : ''}
+      
+                  ${currentStatus === 'dikerjakan' || currentStatus === 'taken' ? `
+                    <div class="d-flex gap-2">
+                      <button onclick="bukaRuangChat(${jsonItem})" class="btn btn-primary btn-sm flex-fill">
+                        2. 💬 Balas
+                      </button>
+                      <button onclick="tandaiClose(${jsonItem})" class="btn btn-success btn-sm flex-fill">
+                        3. ✅ Tandai Close
+                      </button>
+                    </div>
+                  ` : ''}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      `}).join('');
-    }
+        `}).join('');
+      }
 
     async function updateKategoriPekerjaan(idPermintaan, kategori) {
       if (!kategori) return;

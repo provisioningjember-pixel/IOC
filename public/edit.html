@@ -491,39 +491,87 @@ async function loadTickets(isSilent = false) {
 }
 
 // Inisialisasi Event Listener dan Default Value saat halaman pertama loaded
-document.addEventListener('DOMContentLoaded', () => {
-  const startDateInput = document.getElementById('startDate');
-  const endDateInput = document.getElementById('endDate');
-  const btnFilterDate = document.getElementById('btnFilterDate'); // pastikan ID tombol di HTML cocok
-
-  const todayStr = getTodayString();
-
-  // 1. Set default nilai input tanggal ke Hari Ini
-  if (startDateInput && !startDateInput.value) {
-    startDateInput.value = todayStr;
-  }
-  if (endDateInput && !endDateInput.value) {
-    endDateInput.value = todayStr;
-  }
-
-  // 2. Pasang event listener pada tombol Filter Tanggal
-  if (btnFilterDate) {
-    btnFilterDate.addEventListener('click', (e) => {
-      e.preventDefault();
-      loadTickets(false); // Reload data tiket saat tombol filter diklik
-    });
-  }
-
-  // 3. Load awal data tiket
-  loadTickets();
-});
+      document.addEventListener('DOMContentLoaded', () => {
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        const btnFilterDate = document.getElementById('btnFilterDate');
+      
+        const todayStr = getTodayString();
+      
+        // 1. SET DEFAULT HARI INI (Fungsi Lama - Tetap Ada)
+        if (startDateInput && !startDateInput.value) {
+          startDateInput.value = todayStr;
+        }
+        if (endDateInput && !endDateInput.value) {
+          endDateInput.value = todayStr;
+        }
+      
+        // 2. EVENT LISTENER TOMBOL FILTER (Fungsi Lama + Validasi Max 31 Hari)
+        if (btnFilterDate) {
+          btnFilterDate.addEventListener('click', (e) => {
+            e.preventDefault();
+            applyDateFilter(); // Memanggil validasi 31 hari sebelum loadTickets()
+          });
+        }
+      
+        // 3. PEMBATAS KALENDER OTO (Fitur Baru Tambahan)
+        if (startDateInput && endDateInput) {
+          startDateInput.addEventListener('change', () => {
+            if (startDateInput.value) {
+              const startDateObj = new Date(startDateInput.value);
+              
+              // Tambahkan 31 hari untuk batas akhir kalender
+              startDateObj.setDate(startDateObj.getDate() + 31);
+              
+              const maxYear = startDateObj.getFullYear();
+              const maxMonth = String(startDateObj.getMonth() + 1).padStart(2, '0');
+              const maxDay = String(startDateObj.getDate()).padStart(2, '0');
+              
+              endDateInput.min = startDateInput.value;
+              endDateInput.max = `${maxYear}-${maxMonth}-${maxDay}`;
+            }
+          });
+        }
+      
+        // 4. LOAD DATA AWAL (Fungsi Lama - Tetap Ada)
+        loadTickets();
+      });
         
     
     // Fungsi Trigger Filter
 // Fungsi saat tombol "🔍 Filter" diklik
-        function applyDateFilter() {
-          loadTickets(false);
-        }
+        // Fungsi untuk memvalidasi dan menerapkan filter tanggal
+          function applyDateFilter() {
+            const startDateInput = document.getElementById('startDate');
+            const endDateInput = document.getElementById('endDate');
+          
+            if (!startDateInput.value || !endDateInput.value) {
+              alert('⚠️ Harap pilih rentang tanggal lengkap!');
+              return;
+            }
+          
+            const start = new Date(startDateInput.value);
+            const end = new Date(endDateInput.value);
+          
+            // Validasi 1: Tanggal mulai tidak boleh lebih besar dari tanggal selesai
+            if (start > end) {
+              alert('⚠️ Tanggal awal tidak boleh melebihi tanggal akhir!');
+              return;
+            }
+          
+            // Validasi 2: Hitung selisih hari
+            const diffTime = Math.abs(end - start);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+            // Jika selisih lebih dari 31 hari
+            if (diffDays > 31) {
+              alert('⚠️ Rentang filter tanggal tidak boleh lebih dari 1 bulan (31 hari)!');
+              return;
+            }
+          
+            // Jika lolos validasi, jalankan reload tiket
+            loadTickets(false);
+          }
         
         // Fungsi saat tombol "🔄 Hari Ini" diklik
         function resetDateFilter() {

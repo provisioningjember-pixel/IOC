@@ -389,64 +389,64 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
     
     // PERLAKUAN BEDA DI SWITCH TAB
     function switchTab(status, element) {
-      document.querySelectorAll('#ticketTabs .nav-link').forEach(el => el.classList.remove('active'));
-      element.classList.add('active');
-      currentStatus = status;
-    
-      const filterContainer = document.getElementById('filterDateContainer');
-    
-      if (status === 'close') {
-        // Tampilkan Filter Tanggal khusus Tab Close
-        filterContainer.classList.remove('d-none');
+          document.querySelectorAll('#ticketTabs .nav-link').forEach(el => el.classList.remove('active'));
+          element.classList.add('active');
+          currentStatus = status;
         
-        // Set default ke tanggal HARI INI jika input masih kosong
-        if (!document.getElementById('startDate').value) {
-          document.getElementById('startDate').value = getTodayString();
-          document.getElementById('endDate').value = getTodayString();
+          const filterContainer = document.getElementById('filterDateContainer');
+        
+          if (status === 'close') {
+            filterContainer.classList.remove('d-none');
+            
+            // Set default tanggal hari ini di input tanggal jika belum terisi
+            const startInput = document.getElementById('startDate');
+            const endInput = document.getElementById('endDate');
+            if (!startInput.value || !endInput.value) {
+              const today = getTodayString();
+              startInput.value = today;
+              endInput.value = today;
+            }
+          } else {
+            filterContainer.classList.add('d-none');
+          }
+        
+          loadTickets();
         }
-      } else {
-        // Sembunyikan Filter Tanggal untuk tab Open & Dikerjakan
-        filterContainer.classList.add('d-none');
-      }
-    
-      loadTickets();
-    }
-    
-    async function loadTickets(isSilent = false) {
-      const container = document.getElementById('ticketContainer');
-      if (!isSilent && container.children.length === 0) {
-        container.innerHTML = `<div class="text-center p-5 text-muted">Memuat data tiket...</div>`;
-      }
-    
-      try {
-        const segmen = currentUser.segmen || 'B2C';
-        const idTelegram = currentUser.id_telegram || '';
-    
-        // URL dasar
-        let url = `/api/tickets?segmen=${segmen}&status=${currentStatus}&id_telegram_hd=${idTelegram}`;
-    
-        // Jika tab close aktif, kirimkan parameter range tanggal ke API
-        if (currentStatus === 'close') {
-          const startDate = document.getElementById('startDate').value || getTodayString();
-          const endDate = document.getElementById('endDate').value || getTodayString();
-          url += `&start_date=${startDate}&end_date=${endDate}`;
+        
+        async function loadTickets(isSilent = false) {
+          const container = document.getElementById('ticketContainer');
+          if (!isSilent && container.children.length === 0) {
+            container.innerHTML = `<div class="text-center p-5 text-muted">Memuat data tiket...</div>`;
+          }
+        
+          try {
+            const segmen = currentUser.segmen || 'B2C';
+            const idTelegram = currentUser.id_telegram || '';
+        
+            let url = `/api/tickets2?segmen=${segmen}&status=${currentStatus}&id_telegram_hd=${idTelegram}`;
+        
+            // Ambil tanggal langsung dari input HTML jika di Tab Close
+            if (currentStatus === 'close') {
+              const startDate = document.getElementById('startDate').value || getTodayString();
+              const endDate = document.getElementById('endDate').value || getTodayString();
+              url += `&start_date=${startDate}&end_date=${endDate}`;
+            }
+        
+            const res = await fetch(url);
+            const result = await res.json();
+        
+            if (result.success) {
+              renderTickets(result.data);
+              if (result.counts) updateBadgeCounts(result.counts);
+            } else if (!isSilent) {
+              container.innerHTML = `<div class="alert alert-danger">${result.error}</div>`;
+            }
+          } catch (err) {
+            if (!isSilent) {
+              container.innerHTML = `<div class="alert alert-warning text-center">Koneksi bermasalah</div>`;
+            }
+          }
         }
-    
-        const res = await fetch(url);
-        const result = await res.json();
-    
-        if (result.success) {
-          renderTickets(result.data);
-          updateBadgeCounts(result.counts);
-        } else if (!isSilent) {
-          container.innerHTML = `<div class="alert alert-danger">${result.error}</div>`;
-        }
-      } catch (err) {
-        if (!isSilent) {
-          container.innerHTML = `<div class="alert alert-warning text-center">Koneksi bermasalah</div>`;
-        }
-      }
-    }
     
     // Fungsi Trigger Filter
     function applyDateFilter() {

@@ -105,20 +105,21 @@
             <div id="filterDateContainer" class="d-none bg-white p-3 rounded border mb-3 shadow-sm">
               <div class="row g-2 align-items-center">
                 <div class="col-auto">
-                  <label class="col-form-label col-form-label-sm fw-bold">Dari Tanggal:</label>
+                  <label for="startDate" class="col-form-label col-form-label-sm fw-bold">Dari Tanggal:</label>
                 </div>
                 <div class="col-auto">
                   <input type="date" id="startDate" class="form-control form-control-sm" />
                 </div>
                 <div class="col-auto">
-                  <label class="col-form-label col-form-label-sm fw-bold">Sampai Tanggal:</label>
+                  <label for="endDate" class="col-form-label col-form-label-sm fw-bold">Sampai Tanggal:</label>
                 </div>
                 <div class="col-auto">
                   <input type="date" id="endDate" class="form-control form-control-sm" />
                 </div>
                 <div class="col-auto">
-                  <button onclick="applyDateFilter()" class="btn btn-primary btn-sm">🔍 Filter</button>
-                  <button onclick="resetDateFilter()" class="btn btn-outline-secondary btn-sm">🔄 Hari Ini</button>
+                  <!-- Dipanggil langsung ke fungsi JS -->
+                  <button type="button" onclick="applyDateFilter()" class="btn btn-primary btn-sm">🔍 Filter</button>
+                  <button type="button" onclick="resetDateFilter()" class="btn btn-outline-secondary btn-sm">🔄 Hari Ini</button>
                 </div>
               </div>
             </div>
@@ -262,6 +263,35 @@ window.addEventListener('DOMContentLoaded', () => {
       isChatUserInteracting = !isAtBottom;
     });
   }
+
+  
+    const filterDateInput = document.getElementById('filterDate');
+      const btnFilterDate = document.getElementById('btnFilterDate');
+    
+      // 1. Ambil tanggal hari ini (Format: YYYY-MM-DD)
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const formattedToday = `${yyyy}-${mm}-${dd}`;
+    
+      // 2. Set nilai default input ke hari ini
+      if (filterDateInput) {
+        filterDateInput.value = formattedToday;
+      }
+    
+      // 3. Panggil data awal (otomatis filter hari ini)
+      loadTickets(formattedToday);
+    
+      // 4. Aktifkan tombol filter saat diklik
+      if (btnFilterDate) {
+        btnFilterDate.addEventListener('click', () => {
+          const selectedDate = filterDateInput ? filterDateInput.value : '';
+          loadTickets(selectedDate);
+        });
+      }
+
+  
 });
     
 //----------------
@@ -379,13 +409,14 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
     }
 
     // Helper untuk mendapatkan format YYYY-MM-DD hari ini
+   
     function getTodayString() {
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
     
     // PERLAKUAN BEDA DI SWITCH TAB
     function switchTab(status, element) {
@@ -412,52 +443,100 @@ document.addEventListener('DOMContentLoaded', setupIdleListener);
         
           loadTickets();
         }
+
+    // Helper fungsi untuk mendapatkan string tanggal hari ini (YYYY-MM-DD)
+
+
+// Fungsi Load Tickets yang sudah disempurnakan
+async function loadTickets(isSilent = false) {
+  const container = document.getElementById('ticketContainer');
+  if (!container) return;
+
+  if (!isSilent && container.children.length === 0) {
+    container.innerHTML = `<div class="text-center p-5 text-muted">Memuat data tiket...</div>`;
+  }
+
+  try {
+    const segmen = currentUser.segmen || 'B2C';
+    const idTelegram = currentUser.id_telegram || '';
+
+    let url = `/api/tickets2?segmen=${segmen}&status=${currentStatus}&id_telegram_hd=${idTelegram}`;
+
+    // Filter tanggal diaktifkan jika status adalah 'close' (atau dapat disesuaikan)
+    if (currentStatus === 'close') {
+      const startDateInput = document.getElementById('startDate');
+      const endDateInput = document.getElementById('endDate');
+
+      const startDate = (startDateInput && startDateInput.value) ? startDateInput.value : getTodayString();
+      const endDate = (endDateInput && endDateInput.value) ? endDateInput.value : getTodayString();
+
+      url += `&start_date=${startDate}&end_date=${endDate}`;
+    }
+
+    const res = await fetch(url);
+    const result = await res.json();
+
+    if (result.success) {
+      renderTickets(result.data);
+      if (result.counts) updateBadgeCounts(result.counts);
+    } else if (!isSilent) {
+      container.innerHTML = `<div class="alert alert-danger">${result.error || 'Gagal memuat data'}</div>`;
+    }
+  } catch (err) {
+    console.error('Error loadTickets:', err);
+    if (!isSilent) {
+      container.innerHTML = `<div class="alert alert-warning text-center">Koneksi bermasalah</div>`;
+    }
+  }
+}
+
+// Inisialisasi Event Listener dan Default Value saat halaman pertama loaded
+document.addEventListener('DOMContentLoaded', () => {
+  const startDateInput = document.getElementById('startDate');
+  const endDateInput = document.getElementById('endDate');
+  const btnFilterDate = document.getElementById('btnFilterDate'); // pastikan ID tombol di HTML cocok
+
+  const todayStr = getTodayString();
+
+  // 1. Set default nilai input tanggal ke Hari Ini
+  if (startDateInput && !startDateInput.value) {
+    startDateInput.value = todayStr;
+  }
+  if (endDateInput && !endDateInput.value) {
+    endDateInput.value = todayStr;
+  }
+
+  // 2. Pasang event listener pada tombol Filter Tanggal
+  if (btnFilterDate) {
+    btnFilterDate.addEventListener('click', (e) => {
+      e.preventDefault();
+      loadTickets(false); // Reload data tiket saat tombol filter diklik
+    });
+  }
+
+  // 3. Load awal data tiket
+  loadTickets();
+});
         
-        async function loadTickets(isSilent = false) {
-          const container = document.getElementById('ticketContainer');
-          if (!isSilent && container.children.length === 0) {
-            container.innerHTML = `<div class="text-center p-5 text-muted">Memuat data tiket...</div>`;
-          }
-        
-          try {
-            const segmen = currentUser.segmen || 'B2C';
-            const idTelegram = currentUser.id_telegram || '';
-        
-            let url = `/api/tickets2?segmen=${segmen}&status=${currentStatus}&id_telegram_hd=${idTelegram}`;
-        
-            // Ambil tanggal langsung dari input HTML jika di Tab Close
-            if (currentStatus === 'close') {
-              const startDate = document.getElementById('startDate').value || getTodayString();
-              const endDate = document.getElementById('endDate').value || getTodayString();
-              url += `&start_date=${startDate}&end_date=${endDate}`;
-            }
-        
-            const res = await fetch(url);
-            const result = await res.json();
-        
-            if (result.success) {
-              renderTickets(result.data);
-              if (result.counts) updateBadgeCounts(result.counts);
-            } else if (!isSilent) {
-              container.innerHTML = `<div class="alert alert-danger">${result.error}</div>`;
-            }
-          } catch (err) {
-            if (!isSilent) {
-              container.innerHTML = `<div class="alert alert-warning text-center">Koneksi bermasalah</div>`;
-            }
-          }
-        }
     
     // Fungsi Trigger Filter
-    function applyDateFilter() {
-      loadTickets();
-    }
-    
-    function resetDateFilter() {
-      document.getElementById('startDate').value = getTodayString();
-      document.getElementById('endDate').value = getTodayString();
-      loadTickets();
-    }
+// Fungsi saat tombol "🔍 Filter" diklik
+        function applyDateFilter() {
+          loadTickets(false);
+        }
+        
+        // Fungsi saat tombol "🔄 Hari Ini" diklik
+        function resetDateFilter() {
+          const todayStr = getTodayString();
+          
+          const startDateInput = document.getElementById('startDate');
+          const endDateInput = document.getElementById('endDate');
+        
+          if (startDateInput) startDateInput.value = todayStr;
+          if (endDateInput) endDateInput.value = todayStr;
+        
+          loadTickets(false); // Reload data tiket untuk hari ini
+        }
 
     function updateBadgeCounts(counts) {
       if (counts) {

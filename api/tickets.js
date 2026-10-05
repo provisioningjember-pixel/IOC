@@ -11,7 +11,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { segmen = 'B2C', status = 'open', id_telegram_hd = '' } = req.query;
+    // 1. Ambil start_date dan end_date dari query parameter
+    const { 
+      segmen = 'B2C', 
+      status = 'open', 
+      id_telegram_hd = '',
+      start_date,
+      end_date
+    } = req.query;
 
     let query = '';
     let args = [];
@@ -42,17 +49,25 @@ export default async function handler(req, res) {
       `;
       args = [segmen, id_telegram_hd];
 
-    // 3. TAB CLOSED: Filter segmen HD, status close, DAN id_telegram_hd sesuai HD
+    // 3. TAB CLOSED: Disaring berdasarkan Range Tanggal (start_date s/d end_date)
     } else if (status === 'close' || status === 'closed') {
+      // Jika frontend tidak mengirim tanggal, default-nya hari ini
+      const today = new Date().toISOString().split('T')[0];
+      const startDate = start_date || today;
+      const endDate = end_date || today;
+
+      // Catatan: Ganti DATE(timestamp_close) sesuai nama kolom timestamp penutupan di tabelmu
       query = `
         SELECT * FROM permintaan 
         WHERE LOWER(segmen) = LOWER(?) 
           AND LOWER(status) IN ('close', 'closed', 'selesai')
           AND id_telegram_hd = ?
+          AND DATE(COALESCE(timestamp_close, timestamp_created)) BETWEEN DATE(?) AND DATE(?)
           ${filterPesanUtama}
-        ORDER BY timestamp_close DESC
+        ORDER BY timestamp_created DESC
       `;
-      args = [segmen, id_telegram_hd];
+      args = [segmen, id_telegram_hd, startDate, endDate];
+
     } else {
       return res.status(400).json({ success: false, error: 'Status filter tidak valid' });
     }

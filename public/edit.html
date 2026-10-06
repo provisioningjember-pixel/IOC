@@ -21,6 +21,7 @@
       box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.12) !important;
     }
     
+    /* Style Chat Box */
     .chat-box { 
       height: 380px; 
       overflow-y: auto; 
@@ -81,9 +82,919 @@
     </nav>
 
     <div class="container mt-4">
-      <!-- Nav Tabs Filter & Tombol Refresh Manual (Hanya Open & Dikerjakan) -->
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <ul class="nav nav-tabs border-bottom-0 mb-0" id="ticketTabs">
-          <li class="nav-item">
-            <button class="nav-link active" onclick="switchTab('open
+      <!-- Nav Tabs Filter -->
+      <ul class="nav nav-tabs mb-4" id="ticketTabs">
+        <li class="nav-item">
+          <button class="nav-link active" onclick="switchTab('open', this)">
+            📥 Pesan Open <span id="countOpen" class="badge bg-danger rounded-pill">0</span>
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" onclick="switchTab('dikerjakan', this)">
+            ⚙ Dikerjakan <span id="countTaken" class="badge bg-warning text-dark rounded-pill">0</span>
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" onclick="switchTab('close', this)">
+            ✅ Closed
+          </button>
+        </li>
+      </ul>
+
+      <!-- FILTER RANGE TANGGAL -->
+      <div id="filterDateContainer" class="d-none bg-white p-3 rounded border mb-3 shadow-sm">
+        <div class="row g-2 align-items-center">
+          <div class="col-auto">
+            <label for="startDate" class="col-form-label col-form-label-sm fw-bold">Dari Tanggal:</label>
+          </div>
+          <div class="col-auto">
+            <input type="date" id="startDate" class="form-control form-control-sm" />
+          </div>
+          <div class="col-auto">
+            <label for="endDate" class="col-form-label col-form-label-sm fw-bold">Sampai Tanggal:</label>
+          </div>
+          <div class="col-auto">
+            <input type="date" id="endDate" class="form-control form-control-sm" />
+          </div>
+          <div class="col-auto">
+            <button type="button" id="btnFilterDate" onclick="applyDateFilter()" class="btn btn-primary btn-sm">🔍 Filter</button>
+            <button type="button" onclick="resetDateFilter()" class="btn btn-outline-secondary btn-sm">🔄 Hari Ini</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Container Daftar Tiket -->
+      <div id="ticketContainer" class="row g-3"></div>
+    </div>
+  </div>
+
+  <!-- MODAL RUANG CHAT & BALAS -->
+  <div class="modal fade" id="chatModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title">💬 Ruang Chat Tiket <span id="chatTicketId"></span></h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Info Ringkas Tiket -->
+          <div id="chatInfo" class="mb-3 p-2 bg-light border rounded small text-secondary"></div>
+
+          <!-- Box Percakapan -->
+          <div id="chatBox" class="chat-box mb-3 border">
+            <div class="text-center text-muted small my-auto pt-5">Memuat riwayat chat...</div>
+          </div>
+
+          <!-- Container Preview Image Sebelum Kirim -->
+          <div id="imagePreviewContainer" class="d-none mb-2 p-2 bg-light rounded border d-flex align-items-center gap-2">
+            <img id="imagePreview" src="" class="preview-img border" alt="Preview Gambar" />
+            <div>
+              <small class="text-muted d-block" id="imageFileName">Gambar terlampir</small>
+              <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="clearSelectedImage()">Hapus Gambar</button>
+            </div>
+          </div>
+
+          <!-- Form Kirim Pesan -->
+          <form id="chatForm" onsubmit="sendChatMessage(event)">
+            <div class="input-group">
+              <textarea 
+                id="chatInput" 
+                class="form-control" 
+                placeholder="Tulis balasan... (Shift+Enter untuk baris baru, Enter untuk kirim)" 
+                rows="1" 
+                style="resize: none; max-height: 120px;"
+                onkeydown="handleChatKeyDown(event)"></textarea>
               
+              <label class="btn btn-outline-secondary d-flex align-items-center" for="fileInput" title="Lampirkan Gambar">
+                📎
+              </label>
+              <input type="file" id="fileInput" accept="image/*" class="d-none" onchange="handleFileSelect(event)" />
+              
+              <button class="btn btn-primary d-flex align-items-center gap-2" type="submit" id="btnSendChat">
+                <span id="btnSendText">Kirim Pesan</span>
+                <span id="btnSendLoading" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+              </button>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer d-flex justify-content-between">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
+          <span class="small text-muted">Terhubung ke Telegram Teknisi</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL LIGHTBOX ZOOM GAMBAR -->
+  <div class="modal fade" id="imageZoomModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl text-center">
+      <div class="modal-content bg-transparent border-0">
+        <div class="modal-body p-0 position-relative">
+          <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="Close"></button>
+          <img id="zoomedImage" src="" class="img-fluid rounded shadow" style="max-height: 85vh; object-fit: contain;" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container">
+    <div id="liveToast" class="toast align-items-center text-white bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body" id="toastMessage"></div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+
+    // ==========================================
+    // AUTO LOGOUT INAKTIF 5 MENIT
+    // ==========================================
+    const IDLE_TIMEOUT = 5 * 60 * 1000; // 5 Menit
+    let idleTimer;
+
+    function resetIdleTimer() {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(autoLogout, IDLE_TIMEOUT);
+    }
+
+    function autoLogout() {
+      alert("Sesi Anda telah berakhir karena tidak ada aktivitas selama 5 menit.");
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = 'index.html';
+    }
+
+    function setupIdleListener() {
+      const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+      events.forEach(event => {
+        window.addEventListener(event, resetIdleTimer, true);
+      });
+      resetIdleTimer();
+    }
+
+    // ==========================================
+    // GLOBAL VARIABLES & INITIALIZATION
+    // ==========================================
+    let isChatUserInteracting = false;
+    let isUserInteracting = false;
+    let currentUser = JSON.parse(localStorage.getItem('hd_user')) || null;
+    let currentStatus = 'open';
+    let activeTicket = null;
+    let selectedImageFile = null;
+    let chatModalObj = null;
+    let pollingInterval = null;
+    let chatInterval = null;
+
+    const listKategoriSegmen = [
+      '/MO', '/DO', '/AO','/FAILWA', '/PDA', '/Config', '/Reboot', '/SSID/Pass', '/Embassy',
+      '/CekPort', '/Downtime', '/Share', '/CekInet', '/Client', '/OpenLAN', '/DetekONT',
+      '/Close', '/FUP', '/CekPaket', '/Bukis', '/Unbindusee', '/Cekpayment', '/Dispatch',
+      '/Shutdown', '/Assign', '/Noshutdown', '/Openportlan', '/PelurusanBW', '/Redaman'
+    ];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      setupIdleListener();
+
+      // Modal Initialization & Events
+      const modalEl = document.getElementById('chatModal');
+      if (modalEl) {
+        chatModalObj = new bootstrap.Modal(modalEl);
+        modalEl.addEventListener('paste', handlePasteImage);
+        modalEl.addEventListener('hidden.bs.modal', () => {
+          if (chatInterval) {
+            clearInterval(chatInterval);
+            chatInterval = null;
+          }
+          activeTicket = null;
+          isUserInteracting = false;
+        });
+      }
+
+      // Interaction listeners for chat auto-scroll
+      const chatBoxElement = document.getElementById('chatBox');
+      if (chatBoxElement) {
+        chatBoxElement.addEventListener('mouseenter', () => { isChatUserInteracting = true; });
+        chatBoxElement.addEventListener('mouseleave', () => { 
+          const isAtBottom = chatBoxElement.scrollHeight - chatBoxElement.scrollTop - chatBoxElement.clientHeight < 50;
+          if (isAtBottom) isChatUserInteracting = false; 
+        });
+        chatBoxElement.addEventListener('scroll', () => {
+          const isAtBottom = chatBoxElement.scrollHeight - chatBoxElement.scrollTop - chatBoxElement.clientHeight < 50;
+          isChatUserInteracting = !isAtBottom;
+        });
+      }
+
+      // Container Hover listener to prevent reload jump
+      const container = document.getElementById('ticketContainer');
+      if (container) {
+        container.addEventListener('mouseenter', () => { isUserInteracting = true; });
+        container.addEventListener('mouseleave', () => { if (!activeTicket) isUserInteracting = false; });
+      }
+
+      // Auto-resize textarea listener
+      const chatInput = document.getElementById('chatInput');
+      if (chatInput) {
+        chatInput.addEventListener('input', function () {
+          this.style.height = 'auto';
+          this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+      }
+
+      // Date Range Boundary Handler
+      const startDateInput = document.getElementById('startDate');
+      const endDateInput = document.getElementById('endDate');
+      const todayStr = getTodayString();
+
+      if (startDateInput && endDateInput) {
+        if (!startDateInput.value) startDateInput.value = todayStr;
+        if (!endDateInput.value) endDateInput.value = todayStr;
+
+        startDateInput.addEventListener('change', () => {
+          if (startDateInput.value) {
+            const startDateObj = new Date(startDateInput.value);
+            startDateObj.setDate(startDateObj.getDate() + 31);
+            
+            const maxYear = startDateObj.getFullYear();
+            const maxMonth = String(startDateObj.getMonth() + 1).padStart(2, '0');
+            const maxDay = String(startDateObj.getDate()).padStart(2, '0');
+            
+            endDateInput.min = startDateInput.value;
+            endDateInput.max = `${maxYear}-${maxMonth}-${maxDay}`;
+          }
+        });
+      }
+
+      if (currentUser) {
+        showDashboard();
+      } else {
+        showLogin();
+      }
+    });
+
+    // ==========================================
+    // AUTH & NAVIGATION
+    // ==========================================
+    function showToast(message) {
+      document.getElementById('toastMessage').innerText = message;
+      const toastEl = document.getElementById('liveToast');
+      const toast = new bootstrap.Toast(toastEl, { delay: 2500 });
+      toast.show();
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nik = document.getElementById('inputNik').value.trim();
+      const password = document.getElementById('inputPassword').value.trim();
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nik, password })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          currentUser = data.user;
+          localStorage.setItem('hd_user', JSON.stringify(currentUser));
+          showDashboard();
+        } else {
+          alert(data.error || 'Login gagal');
+        }
+      } catch (err) {
+        alert('Koneksi bermasalah saat login');
+      }
+    });
+
+    function showLogin() {
+      document.getElementById('loginSection').classList.remove('d-none');
+      document.getElementById('dashboardSection').classList.add('d-none');
+      if (pollingInterval) clearInterval(pollingInterval);
+    }
+
+    function showDashboard() {
+      document.getElementById('loginSection').classList.add('d-none');
+      document.getElementById('dashboardSection').classList.remove('d-none');
+      document.getElementById('userInfo').innerText = `${currentUser.nama || currentUser.username} (${currentUser.nik})`;
+      document.getElementById('badgeSegmen').innerText = currentUser.segmen || 'B2C';
+      
+      loadTickets();
+
+      if (pollingInterval) clearInterval(pollingInterval);
+      pollingInterval = setInterval(() => {
+        if (isUserInteracting) return;
+        loadTickets(true);
+      }, 4000);
+    }
+
+    function logout() {
+      localStorage.removeItem('hd_user');
+      currentUser = null;
+      showLogin();
+    }
+
+    function getTodayString() {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function switchTab(status, element) {
+      document.querySelectorAll('#ticketTabs .nav-link').forEach(el => el.classList.remove('active'));
+      element.classList.add('active');
+      currentStatus = status;
+      
+      const filterContainer = document.getElementById('filterDateContainer');
+      if (status === 'close') {
+        filterContainer.classList.remove('d-none');
+        const startInput = document.getElementById('startDate');
+        const endInput = document.getElementById('endDate');
+        if (!startInput.value || !endInput.value) {
+          const today = getTodayString();
+          startInput.value = today;
+          endInput.value = today;
+        }
+      } else {
+        filterContainer.classList.add('d-none');
+      }
+      loadTickets();
+    }
+
+    // ==========================================
+    // TICKET MANAGEMENT & RENDERING
+    // ==========================================
+    async function loadTickets(isSilent = false) {
+      const container = document.getElementById('ticketContainer');
+      if (!container) return;
+
+      if (!isSilent && container.children.length === 0) {
+        container.innerHTML = `<div class="text-center p-5 text-muted">Memuat data tiket...</div>`;
+      }
+
+      try {
+        const segmen = currentUser.segmen || 'B2C';
+        const idTelegram = currentUser.id_telegram || '';
+
+        let url = `/api/tickets2?segmen=${segmen}&status=${currentStatus}&id_telegram_hd=${idTelegram}`;
+
+        if (currentStatus === 'close') {
+          const startDateInput = document.getElementById('startDate');
+          const endDateInput = document.getElementById('endDate');
+
+          const startDate = (startDateInput && startDateInput.value) ? startDateInput.value : getTodayString();
+          const endDate = (endDateInput && endDateInput.value) ? endDateInput.value : getTodayString();
+
+          url += `&start_date=${startDate}&end_date=${endDate}`;
+        }
+
+        const res = await fetch(url);
+        const result = await res.json();
+
+        if (result.success) {
+          renderTickets(result.data);
+          if (result.counts) updateBadgeCounts(result.counts);
+        } else if (!isSilent) {
+          container.innerHTML = `<div class="alert alert-danger">${result.error || 'Gagal memuat data'}</div>`;
+        }
+      } catch (err) {
+        console.error('Error loadTickets:', err);
+        if (!isSilent) {
+          container.innerHTML = `<div class="alert alert-warning text-center">Koneksi bermasalah</div>`;
+        }
+      }
+    }
+
+    function applyDateFilter() {
+      const startDateInput = document.getElementById('startDate');
+      const endDateInput = document.getElementById('endDate');
+      
+      if (!startDateInput.value || !endDateInput.value) {
+        alert('⚠️ Harap pilih rentang tanggal lengkap!');
+        return;
+      }
+      
+      const start = new Date(startDateInput.value);
+      const end = new Date(endDateInput.value);
+      
+      if (start > end) {
+        alert('⚠️ Tanggal awal tidak boleh melebihi tanggal akhir!');
+        return;
+      }
+      
+      const diffTime = Math.abs(end - start);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays > 31) {
+        alert('⚠️ Rentang filter tanggal tidak boleh lebih dari 1 bulan (31 hari)!');
+        return;
+      }
+      
+      loadTickets(false);
+    }
+
+    function resetDateFilter() {
+      const todayStr = getTodayString();
+      const startDateInput = document.getElementById('startDate');
+      const endDateInput = document.getElementById('endDate');
+      
+      if (startDateInput) startDateInput.value = todayStr;
+      if (endDateInput) endDateInput.value = todayStr;
+      
+      loadTickets(false);
+    }
+
+    function updateBadgeCounts(counts) {
+      if (counts) {
+        if (counts.open !== undefined) document.getElementById('countOpen').innerText = counts.open;
+        if (counts.taken !== undefined) document.getElementById('countTaken').innerText = counts.taken;
+      }
+    }
+
+    function renderTickets(tickets) {
+      const container = document.getElementById('ticketContainer');
+      
+      if (!tickets || tickets.length === 0) {
+        container.innerHTML = `
+          <div class="col-12 text-center p-5 text-muted bg-white rounded border">
+            Tidak ada tiket di kategori ini untuk segmen <strong>${currentUser.segmen || 'B2C'}</strong>.
+          </div>`;
+        return;
+      }
+
+      // VIEW TAB CLOSE (TABLE FORMAT)
+      if (currentStatus === 'close') {
+        const rows = tickets.map((item, index) => {
+          const jsonItem = JSON.stringify(item).replace(/"/g, '&quot;');
+          return `
+            <tr>
+              <td class="text-center fw-bold text-secondary">${index + 1}</td>
+              <td><span class="badge bg-primary">#${item.tiket_id || item.id_permintaan}</span></td>
+              <td><small class="text-muted">${item.timestamp_created || '-'}</small></td>
+              <td><span class="badge bg-info text-dark">${item.kategori_pekerjaan || '-'}</span></td>
+              <td><small class="fw-semibold">${item.nama_teknisi || item.username_teknisi || '-'}</small></td>
+              <td style="max-width: 280px; white-space: pre-wrap; font-size: 0.8rem;" class="text-secondary">${item.pesan || '-'}</td>
+              <td class="text-center">
+                <button onclick="bukaRuangChat(${jsonItem})" class="btn btn-sm btn-outline-primary">
+                  💬 Riwayat Chat
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        container.innerHTML = `
+          <div class="col-12">
+            <div class="card shadow-sm border-0">
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+                    <thead class="table-light">
+                      <tr>
+                        <th class="text-center" style="width: 50px;">No</th>
+                        <th>ID Tiket</th>
+                        <th>Waktu Masuk</th>
+                        <th>Segmen Pekerjaan</th>
+                        <th>Teknisi</th>
+                        <th>Pesan / Permintaan</th>
+                        <th class="text-center">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${rows}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      // VIEW TAB OPEN & DIKERJAKAN (CARD FORMAT)
+      container.innerHTML = tickets.map(item => {
+        const currentKat = (item.kategori_pekerjaan || '').trim().toLowerCase();
+
+        const optionsKategori = listKategoriSegmen.map(kat => {
+          const isSelected = kat.toLowerCase() === currentKat ? 'selected' : '';
+          return `<option value="${kat}" ${isSelected}>${kat}</option>`;
+        }).join('');
+
+        const jsonItem = JSON.stringify(item).replace(/"/g, '&quot;');
+        const ticketId = item.id_permintaan || item.tiket_id;
+
+        return `
+        <div class="col-md-6 col-lg-4">
+          <div class="card shadow-sm border-0 ticket-card h-100">
+            <div class="card-body d-flex flex-column">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="badge bg-primary">ID: ${item.tiket_id || item.id_permintaan}</span>
+                <small class="text-muted" style="font-size:11px;">${item.timestamp_created || ''}</small>
+              </div>
+
+              <div class="mb-2">
+                <label class="form-label small text-muted mb-1 fw-semibold">1. Segmen Pekerjaan:</label>
+                <select class="form-select form-select-sm" 
+                  ${currentStatus === 'dikerjakan' || currentStatus === 'taken' ? '' : 'disabled'}
+                  onchange="updateKategoriPekerjaan('${ticketId}', this.value)">
+                  <option value="">-- Pilih Segmen --</option>
+                  ${optionsKategori}
+                </select>
+              </div>
+
+              <p class="card-text text-secondary mb-3 bg-light p-2 rounded" style="white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.81rem;">${item.pesan || '-'}</p>
+              
+              <div class="border-top pt-2 mt-auto">
+                <div class="small text-muted mb-2">
+                  👤 Teknisi: <strong>${item.nama_teknisi || item.username_teknisi || '-'}</strong>
+                </div>
+                
+                ${currentStatus === 'open' ? `
+                  <button onclick="prosesDanAmbilTiket(event, ${jsonItem})" class="btn btn-warning btn-sm w-100 fw-bold">
+                    ⚡ Ambil / Balas Tiket
+                  </button>
+                ` : ''}
+
+                ${currentStatus === 'dikerjakan' || currentStatus === 'taken' ? `
+                  <div class="d-flex gap-2">
+                    <button onclick="bukaRuangChat(${jsonItem})" class="btn btn-primary btn-sm flex-fill">
+                      2. 💬 Balas
+                    </button>
+                    <button onclick="tandaiClose(${jsonItem})" class="btn btn-success btn-sm flex-fill">
+                      3. ✅ Tandai Close
+                    </button>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      `}).join('');
+    }
+
+    async function updateKategoriPekerjaan(idPermintaan, kategori) {
+      if (!kategori) return;
+
+      try {
+        const res = await fetch('/api/update-kategori', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id_permintaan: idPermintaan,
+            kategori_pekerjaan: kategori
+          })
+        });
+
+        const result = await res.json();
+        if (result.success) {
+          showToast('Kategori pekerjaan berhasil diperbarui!');
+          if (activeTicket && (activeTicket.id_permintaan == idPermintaan || activeTicket.tiket_id == idPermintaan)) {
+            activeTicket.kategori_pekerjaan = kategori;
+          }
+          loadTickets(true);
+        } else {
+          alert('Gagal menyimpan kategori: ' + (result.error || 'Terjadi kesalahan di backend'));
+        }
+      } catch (err) {
+        console.error('Gagal simpan kategori', err);
+        alert('Gagal terhubung ke server');
+      }
+    }
+
+    async function prosesDanAmbilTiket(event, item) {
+      const btn = event.currentTarget;
+      const originalText = btn.innerHTML;
+      
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Memproses...`;
+      
+      try {
+        const checkRes = await fetch(`/api/get-ticket-owner?id_permintaan=${encodeURIComponent(item.id_permintaan)}`);
+        const checkData = await checkRes.json();
+        
+        if (checkData.success && checkData.id_telegram_hd) {
+          const hdDiDatabase = String(checkData.id_telegram_hd);
+          const hdSaatIni = String(currentUser.id_telegram);
+          
+          if (hdDiDatabase !== hdSaatIni) {
+            const namaHd = checkData.nama_hd || `HD (ID: ${checkData.id_telegram_hd})`;
+            const yakin = confirm(`Yakin kamu akan lanjut ambil tiket ini yang sebelumnya diambil oleh ${namaHd}?`);
+            
+            if (!yakin) {
+              btn.disabled = false;
+              btn.innerHTML = originalText;
+              return;
+            }
+          }
+        }
+
+        const res = await fetch('/api/update-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id_permintaan: item.id_permintaan,
+            status_baru: 'dikerjakan',
+            id_telegram_hd: currentUser.id_telegram
+          })
+        });
+        
+        const result = await res.json();
+        if (result.success) {
+          bukaRuangChat(item);
+          loadTickets();
+        } else {
+          alert('Gagal mengambil tiket: ' + (result.error || 'Terjadi kesalahan'));
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      } catch (err) {
+        alert('Terjadi kesalahan koneksi');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    // ==========================================
+    // CHAT SYSTEM
+    // ==========================================
+    function bukaRuangChat(item) {
+      activeTicket = item;
+      isUserInteracting = true;
+      
+      document.getElementById('chatTicketId').innerText = `#${item.tiket_id || item.id_permintaan}`;
+      document.getElementById('chatInfo').innerHTML = `
+        <strong>Teknisi:</strong> ${item.nama_teknisi || '-'} | 
+        <strong>Kategori Pekerjaan:</strong> <span class="badge bg-info" id="chatInfoKategori">${item.kategori_pekerjaan || 'Belum Dipilih'}</span>
+      `;
+      
+      clearSelectedImage();
+      chatModalObj.show();
+      loadChatMessages(item.id_permintaan);
+      
+      if (chatInterval) clearInterval(chatInterval);
+      chatInterval = setInterval(() => {
+        if (activeTicket) loadChatMessages(activeTicket.id_permintaan);
+      }, 3000);
+    }
+
+    async function loadChatMessages(idPermintaan) {
+      const chatBox = document.getElementById('chatBox');
+      try {
+        const res = await fetch(`/api/get-chats?id_permintaan=${idPermintaan}`);
+        const result = await res.json();
+
+        if (result.success && result.messages) {
+          renderChatMessages(result.messages);
+        } else {
+          chatBox.innerHTML = `<div class="text-center text-muted small p-3">Belum ada riwayat pesan.</div>`;
+        }
+      } catch (err) {
+        chatBox.innerHTML = `<div class="text-center text-danger small p-3">Gagal memuat percakapan.</div>`;
+      }
+    }
+
+    function openZoomImage(src) {
+      document.getElementById('zoomedImage').src = src;
+      const zoomModal = new bootstrap.Modal(document.getElementById('imageZoomModal'));
+      zoomModal.show();
+    }
+
+    function renderChatMessages(messages) {
+      const chatBox = document.getElementById('chatBox');
+      
+      if (!messages || messages.length === 0) {
+        chatBox.innerHTML = `<div class="text-center text-muted small my-auto pt-5">Belum ada percakapan. Tulis pesan di bawah.</div>`;
+        return;
+      }
+
+      const isAtBottom = chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < 50;
+      if (isChatUserInteracting && !isAtBottom) {
+        return;
+      }
+
+      const newHtml = messages.map(msg => {
+        const isHD = msg.sender_type === 'HD';
+        const namaHdSystem = msg.nama_hd || msg.username_hd || (currentUser ? (currentUser.nama || currentUser.username) : 'HD');
+        const pengirimNama = isHD ? `${namaHdSystem} (HD)` : (msg.nama_teknisi || msg.username_teknisi || 'Teknisi');
+
+        let imagesGroupHtml = '';
+        if (msg.file_id && typeof msg.file_id === 'string' && msg.file_id.trim() !== '') {
+          const fileIdArray = msg.file_id.split(',').map(id => id.trim()).filter(id => id !== '');
+
+          const imgTags = fileIdArray.map(fId => {
+            const imgUrl = (fId.startsWith('http') || fId.startsWith('data:')) 
+              ? fId 
+              : `/api/get-file-url?file_id=${fId}`;
+
+            return `
+              <div class="p-1" style="flex: 0 0 auto;">
+                <img src="${imgUrl}" 
+                     class="img-fluid rounded border shadow-sm cursor-pointer" 
+                     style="height: 120px; width: 120px; object-fit: cover;" 
+                     onclick="openZoomImage('${imgUrl}')" 
+                     alt="Lampiran Gambar" />
+              </div>
+            `;
+          }).join('');
+
+          imagesGroupHtml = `<div class="d-flex flex-wrap gap-1 mb-2">${imgTags}</div>`;
+        }
+
+        let formattedTime = msg.timestamp_created || '';
+        if (formattedTime && formattedTime.includes('T')) {
+          const d = new Date(formattedTime);
+          if (!isNaN(d.getTime())) {
+            formattedTime = d.toLocaleString('id-ID', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            }).replace(/\./g, ':');
+          }
+        }
+
+        return `
+          <div class="d-flex flex-column ${isHD ? 'align-items-end' : 'align-items-start'} mb-2">
+            <div class="p-2 px-3 ${isHD ? 'chat-bubble-hd' : 'chat-bubble-teknisi'} shadow-sm" style="max-width: 85%;">
+              <small class="fw-bold d-block mb-1" style="font-size: 11px;">${pengirimNama}</small>
+              ${imagesGroupHtml}
+              ${msg.pesan ? `<p class="mb-0 small" style="white-space: pre-wrap;">${msg.pesan}</p>` : ''}
+            </div>
+            <small class="text-muted" style="font-size: 9px; margin-top: 2px;">
+              ${formattedTime}
+            </small>
+          </div>
+        `;
+      }).join('');
+
+      if (chatBox.innerHTML !== newHtml) {
+        chatBox.innerHTML = newHtml;
+        if (isAtBottom) {
+          setTimeout(() => {
+            chatBox.scrollTop = chatBox.scrollHeight;
+          }, 50);
+        }
+      }
+    }
+
+    async function sendChatMessage(e) {
+      if (e) e.preventDefault();
+      
+      if (!activeTicket || !activeTicket.id_permintaan) {
+        alert('Data tiket aktif tidak valid. Silakan buka kembali ruang chat.');
+        return;
+      }
+
+      const input = document.getElementById('chatInput');
+      const textPesan = input.value.trim();
+
+      if (!textPesan && !selectedImageFile) return;
+
+      toggleSendLoading(true);
+
+      try {
+        let base64Image = null;
+
+        if (selectedImageFile) {
+          base64Image = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(selectedImageFile);
+          });
+        }
+
+        const payload = {
+          id_permintaan: activeTicket.id_permintaan,
+          id_telegram_hd: currentUser.id_telegram || '',
+          pesan: textPesan,
+          image_base64: base64Image
+        };
+
+        const res = await fetch('/api/send-chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await res.json();
+        
+        if (result.success) {
+          input.value = '';
+          input.style.height = 'auto';
+          clearSelectedImage();
+          await loadChatMessages(activeTicket.id_permintaan);
+        } else {
+          alert('Gagal mengirim pesan: ' + (result.error || result.warning || 'Kesalahan server'));
+        }
+      } catch (err) {
+        console.error('Send Chat Error:', err);
+        alert('Terjadi kesalahan koneksi saat mengirim pesan');
+      } finally {
+        toggleSendLoading(false);
+      }
+    }
+
+    function toggleSendLoading(isLoading) {
+      const btnText = document.getElementById('btnSendText');
+      const btnLoading = document.getElementById('btnSendLoading');
+      const btnSubmit = document.getElementById('btnSendChat');
+
+      if (isLoading) {
+        btnText.innerText = 'Mengirim...';
+        btnLoading.classList.remove('d-none');
+        btnSubmit.disabled = true;
+      } else {
+        btnText.innerText = 'Kirim Pesan';
+        btnLoading.classList.add('d-none');
+        btnSubmit.disabled = false;
+      }
+    }
+
+    function handlePasteImage(e) {
+      const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+      for (let item of items) {
+        if (item.type.indexOf('image') !== -1) {
+          const file = item.getAsFile();
+          showImagePreview(file);
+          break;
+        }
+      }
+    }
+
+    function handleFileSelect(e) {
+      if (e.target.files && e.target.files[0]) {
+        showImagePreview(e.target.files[0]);
+      }
+    }
+
+    function showImagePreview(file) {
+      selectedImageFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById('imagePreview').src = e.target.result;
+        document.getElementById('imageFileName').innerText = file.name || 'Gambar terlampir (Paste)';
+        document.getElementById('imagePreviewContainer').classList.remove('d-none');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearSelectedImage() {
+      selectedImageFile = null;
+      const fileInput = document.getElementById('fileInput');
+      if (fileInput) fileInput.value = '';
+      document.getElementById('imagePreview').src = '';
+      document.getElementById('imagePreviewContainer').classList.add('d-none');
+    }
+
+    function handleChatKeyDown(event) {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        const chatForm = document.getElementById('chatForm');
+        if (chatForm) {
+          chatForm.requestSubmit();
+        }
+      }
+    }
+
+    async function tandaiClose(item) {
+      if (!item.kategori_pekerjaan || item.kategori_pekerjaan.trim() === '') {
+        alert('⚠️ Tiket tidak bisa di-close! Silakan pilih Dropdown Segmen Pekerjaan terlebih dahulu.');
+        return;
+      }
+
+      if (!confirm(`Tandai tiket #${item.tiket_id || item.id_permintaan} sebagai CLOSED?`)) return;
+
+      try {
+        const res = await fetch('/api/update-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id_permintaan: item.id_permintaan,
+            status_baru: 'close',
+            id_telegram_hd: currentUser.id_telegram
+          })
+        });
+
+        const result = await res.json();
+        if (result.success) {
+          alert('Tiket berhasil ditutup!');
+          loadTickets();
+        } else {
+          alert('Gagal menutup tiket: ' + result.error);
+        }
+      } catch (err) {
+        alert('Kesalahan koneksi saat menutup tiket.');
+      }
+    }
+  </script>
+</body>
+</html>

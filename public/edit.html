@@ -81,24 +81,25 @@
       </div>
     </nav>
 
-    <div class="container mt-4">
-      <!-- Nav Tabs Filter (Tanpa Tab Close) -->
-      <ul class="nav nav-tabs mb-4" id="ticketTabs">
-        <li class="nav-item">
-          <button class="nav-link active" onclick="switchTab('open', this)">
-            📥 Pesan Open <span id="countOpen" class="badge bg-danger rounded-pill">0</span>
-          </button>
-        </li>
-        <li class="nav-item">
-          <button class="nav-link" onclick="switchTab('dikerjakan', this)">
-            ⚙ Dikerjakan <span id="countTaken" class="badge bg-warning text-dark rounded-pill">0</span>
-          </button>
-        </li>
-      </ul>
-
-      <!-- Container Daftar Tiket -->
-      <div id="ticketContainer" class="row g-3"></div>
-    </div>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <ul class="nav nav-tabs border-bottom-0 mb-0" id="ticketTabs">
+              <li class="nav-item">
+                <button class="nav-link active" onclick="switchTab('open', this)">
+                  📥 Pesan Open <span id="countOpen" class="badge bg-danger rounded-pill">0</span>
+                </button>
+              </li>
+              <li class="nav-item">
+                <button class="nav-link" onclick="switchTab('dikerjakan', this)">
+                  ⚙ Dikerjakan <span id="countTaken" class="badge bg-warning text-dark rounded-pill">0</span>
+                </button>
+              </li>
+            </ul>
+    
+            <!-- Tombol Refresh Manual -->
+            <button id="btnRefreshManual" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1" onclick="refreshDataManual()">
+              <span id="iconRefresh">🔄</span> Refresh Data
+            </button>
+          </div>
   </div>
 
   <!-- MODAL RUANG CHAT & BALAS -->
@@ -400,6 +401,26 @@
         </div>
       `}).join('');
     }
+
+    async function refreshDataManual() {
+      const btn = document.getElementById('btnRefreshManual');
+      const icon = document.getElementById('iconRefresh');
+      
+      // Animasi indikator loading sederhana
+      btn.disabled = true;
+      icon.innerText = '⏳';
+
+      await loadTickets();
+
+      // Kembalikan tombol ke keadaan semula
+      btn.disabled = false;
+      icon.innerText = '🔄';
+      showToast('Data berhasil diperbarui!');
+    }
+
+
+
+    
 
     async function updateKategoriPekerjaan(idPermintaan, kategori) {
       if (!kategori) return;

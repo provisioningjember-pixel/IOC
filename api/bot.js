@@ -138,9 +138,9 @@ export default async function handler(req, res) {
 
           try { await ctx.react('👍'); } catch (e) {}
 
-          await ctx.reply(`✅ Tiket Berhasil Dibuat!\n📌 ID Tiket: ${generatedId}\n🏷️ Segmen: ${segmenInfo.code}`, {
-            reply_to_message_id: message.message_id,
-          });
+         // await ctx.reply(`✅ Tiket Berhasil Dibuat!\n📌 ID Tiket: ${generatedId}\n🏷️ Segmen: ${segmenInfo.code}`, {
+            //reply_to_message_id: message.message_id,
+         // });
           return;
         }
 
